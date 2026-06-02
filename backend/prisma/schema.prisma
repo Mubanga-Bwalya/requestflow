@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  NEEDS_INFORMATION
+  ACCEPTED
+  ASSIGNED
+  IN_PROGRESS
+  READY_FOR_REVIEW
+  COMPLETED
+  APPROVED
+  REOPENED
+  REJECTED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+}
+
+enum FieldType {
+  TEXT
+  LONG_TEXT
+  DATE
+  DROPDOWN
+  MULTI_SELECT
+  FILE
+  NUMBER
+  CHECKBOX
+  EMAIL
+}
+
+enum NotificationType {
+  REQUEST_UPDATED
+  ASSIGNMENT_UPDATED
+  MILESTONE_UPDATED
+  SYSTEM
+}
+
+model Department { id String @id @default(uuid()) name String @unique managerId String? manager User? @relation("DepartmentManager", fields: [managerId], references: [id]) users User[] @relation("DepartmentUsers") templates RequestTemplate[] requests Request[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model Role { id String @id @default(uuid()) name String @unique users User[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model User { id String @id @default(uuid()) email String @unique fullName String departmentId String? roleId String? department Department? @relation("DepartmentUsers", fields: [departmentId], references: [id]) role Role? @relation(fields: [roleId], references: [id]) managedDepartment Department? @relation("DepartmentManager") createdRequests Request[] @relation("CreatedRequests") assignmentMemberships AssignmentMember[] milestoneOwnership Milestone[] notifications Notification[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model RequestTemplate { id String @id @default(uuid()) name String description String? departmentId String department Department @relation(fields: [departmentId], references: [id]) fields TemplateField[] requests Request[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model TemplateField { id String @id @default(uuid()) label String key String fieldType FieldType required Boolean @default(false) options String? requestTemplateId String requestTemplate RequestTemplate @relation(fields: [requestTemplateId], references: [id]) answers RequestFieldAnswer[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model Request { id String @id @default(uuid()) title String description String? status RequestStatus @default(DRAFT) priority Priority @default(MEDIUM) progress Int @default(0) createdById String targetDepartmentId String requestTemplateId String createdBy User @relation("CreatedRequests", fields: [createdById], references: [id]) targetDepartment Department @relation(fields: [targetDepartmentId], references: [id]) requestTemplate RequestTemplate @relation(fields: [requestTemplateId], references: [id]) fieldAnswers RequestFieldAnswer[] assignment Assignment? attachments Attachment[] activityLogs ActivityLog[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model RequestFieldAnswer { id String @id @default(uuid()) requestId String templateFieldId String value String? request Request @relation(fields: [requestId], references: [id]) templateField TemplateField @relation(fields: [templateFieldId], references: [id]) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model Assignment { id String @id @default(uuid()) requestId String @unique status AssignmentStatus @default(PENDING) progress Int @default(0) request Request @relation(fields: [requestId], references: [id]) members AssignmentMember[] milestones Milestone[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model AssignmentMember { id String @id @default(uuid()) assignmentId String userId String assignment Assignment @relation(fields: [assignmentId], references: [id]) user User @relation(fields: [userId], references: [id]) milestones Milestone[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model Milestone { id String @id @default(uuid()) assignmentId String assignmentMemberId String? ownerUserId String? title String description String? progress Int @default(0) status MilestoneStatus @default(TODO) assignment Assignment @relation(fields: [assignmentId], references: [id]) assignmentMember AssignmentMember? @relation(fields: [assignmentMemberId], references: [id]) ownerUser User? @relation(fields: [ownerUserId], references: [id]) attachments Attachment[] activityLogs ActivityLog[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
+model Attachment { id String @id @default(uuid()) fileName String filePath String requestId String? milestoneId String? request Request? @relation(fields: [requestId], references: [id]) milestone Milestone? @relation(fields: [milestoneId], references: [id]) createdAt DateTime @default(now()) }
+model Notification { id String @id @default(uuid()) userId String type NotificationType title String message String isRead Boolean @default(false) user User @relation(fields: [userId], references: [id]) createdAt DateTime @default(now()) }
+model ActivityLog { id String @id @default(uuid()) action String actorUserId String? requestId String? assignmentId String? milestoneId String? metadata String? request Request? @relation(fields: [requestId], references: [id]) milestone Milestone? @relation(fields: [milestoneId], references: [id]) createdAt DateTime @default(now()) }
