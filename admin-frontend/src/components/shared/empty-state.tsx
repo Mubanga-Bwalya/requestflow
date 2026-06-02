@@ -1,0 +1,2 @@
+import { Card, CardContent } from "@/components/ui/card"; export function EmptyState({title,description}:{title:string;description:string}){return <Card><CardContent><p className="text-sm font-semibold text-brand-dark">{title}</p><p className="mt-1 text-sm text-slate-600">{description}</p></CardContent></Card>}
+

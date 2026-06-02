@@ -1,0 +1,1 @@
+export type TemplateField = { id: string; label: string; fieldType: "TEXT" | "LONG_TEXT" | "DATE" | "DROPDOWN" | "MULTI_SELECT" | "FILE" | "NUMBER" | "CHECKBOX" | "EMAIL"; required: boolean; displayOrder: number; }; export type RequestTemplate = { id: string; name: string; department: "HR" | "MARKETING"; fieldCount: number; isActive: boolean; fields?: TemplateField[]; };
