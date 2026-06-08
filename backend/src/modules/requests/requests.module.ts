@@ -1,4 +1,22 @@
 import { Module } from '@nestjs/common';
-@Module({})
-export class RequestsModule {}
+import { NotificationsModule } from '../notifications/notifications.module';
+import { RequestsController } from './requests.controller';
+import { RequestsCreateService } from './requests-create.service';
+import { RequestsLifecycleService } from './requests-lifecycle.service';
+import { RequestNumberService } from './request-number.service';
+import { RequestsQueryService } from './requests-query.service';
+import { RequestsService } from './requests.service';
 
+@Module({
+  imports: [NotificationsModule],
+  controllers: [RequestsController],
+  providers: [
+    RequestsService,
+    RequestsQueryService,
+    RequestNumberService,
+    RequestsCreateService,
+    RequestsLifecycleService,
+  ],
+  exports: [RequestsService],
+})
+export class RequestsModule {}

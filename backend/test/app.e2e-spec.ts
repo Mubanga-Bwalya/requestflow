@@ -1,29 +1,52 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { authHeader, loginJane } from './e2e/auth-helpers';
+import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 
-describe('AppController (e2e)', () => {
+describe('API (e2e)', () => {
   let app: INestApplication<App>;
+  let prisma: PrismaService;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    const ctx = await createE2eApp();
+    app = ctx.app;
+    prisma = ctx.prisma;
   });
 
-  it('/ (GET)', () => {
+  afterAll(async () => {
+    await closeE2eApp(app);
+  });
+
+  it('/health (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect((res) => {
+        expect(res.body.status).toBe('ok');
+        expect(res.body.service).toBe('RequestFlow API');
+      });
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('/workspace (GET) without token returns 401', () => {
+    return request(app.getHttpServer()).get('/workspace').expect(401);
+  });
+
+  it('login and /auth/me', async () => {
+    if (!(await isDatabaseReady(prisma))) {
+      console.warn('Skipping login e2e: database not seeded');
+      return;
+    }
+
+    const token = await loginJane(app);
+
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set(authHeader(token))
+      .expect(200)
+      .expect((res) => {
+        expect(res.body.email).toBe('jane.employee@requestflow.local');
+      });
   });
 });

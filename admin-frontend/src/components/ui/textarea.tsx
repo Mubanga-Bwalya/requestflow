@@ -1,2 +1,16 @@
-import { TextareaHTMLAttributes } from "react"; export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>){ return <textarea {...props} className="min-h-[110px] w-full rounded-md border border-slate-300 bg-white p-3 text-sm outline-none focus:border-brand-primary"/>; }
+import { TextareaHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
+import { fieldControlClassName } from "@/components/ui/field-control";
 
+export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={cn(
+        fieldControlClassName,
+        "min-h-[110px] resize-y px-4 py-3",
+        className,
+      )}
+    />
+  );
+}

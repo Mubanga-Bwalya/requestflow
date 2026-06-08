@@ -1,0 +1,58 @@
+"use client";
+
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+
+const PATH_TITLES: Record<string, string> = {
+  "/dashboard": "Admin Dashboard",
+  "/users": "Manage Users",
+  "/departments": "Manage Departments",
+  "/templates": "Manage Request Templates",
+  "/reports": "Reports",
+  "/logs": "System Logs",
+  "/settings": "System Settings",
+};
+
+function titleFromPath(pathname: string): string {
+  if (PATH_TITLES[pathname]) return PATH_TITLES[pathname]!;
+  if (pathname.startsWith("/templates/")) return "Template Details";
+  return "RequestFlow Admin";
+}
+
+type ShellTitleContextValue = {
+  title: string;
+  setTitle: (title: string | null) => void;
+};
+
+const ShellTitleContext = createContext<ShellTitleContextValue | null>(null);
+
+export function ShellTitleProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [override, setOverride] = useState<string | null>(null);
+
+  const title = override ?? titleFromPath(pathname);
+
+  const value = useMemo(
+    () => ({
+      title,
+      setTitle: setOverride,
+    }),
+    [title],
+  );
+
+  return <ShellTitleContext.Provider value={value}>{children}</ShellTitleContext.Provider>;
+}
+
+export function usePageTitle(title: string) {
+  const ctx = useContext(ShellTitleContext);
+  useEffect(() => {
+    if (!ctx) return;
+    ctx.setTitle(title);
+    return () => ctx.setTitle(null);
+  }, [ctx, title]);
+}
+
+export function useShellTitle(): string {
+  const ctx = useContext(ShellTitleContext);
+  return ctx?.title ?? "RequestFlow Admin";
+}

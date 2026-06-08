@@ -1,64 +1,34 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { BrandLogo } from "@/components/shared/brand-logo";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useLocalStore } from "@/lib/local-store";
+import { LoadingScreen } from "@/components/shared/loading-screen";
+import { LoginForm } from "@/components/login/login-form";
+import { LoginShell } from "@/components/login/login-shell";
+import { useLoginPage } from "@/hooks/use-login-page";
+
+const SHOW_DEMO_HINT = process.env.NEXT_PUBLIC_SHOW_DEMO_HINTS === "true";
+const DEMO_HINT = "Demo: admin@requestflow.local / password requestflow";
 
 export default function Page() {
-  const router = useRouter();
-  const { actions } = useLocalStore();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const login = useLoginPage();
 
-  const canSubmit = useMemo(() => email.trim().length > 3 && password.trim().length > 0, [email, password]);
-
-  function onLogin() {
-    setError(null);
-    if (!email.trim() || !password.trim()) {
-      setError("Email and password are required.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    actions.login(email.trim());
-    router.push("/dashboard");
+  if (login.showLoading) {
+    return <LoadingScreen variant="dark" />;
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-brand-primary/5 p-6">
-      <Card className="w-full max-w-md overflow-hidden">
-        <div className="border-b border-brand-dark/10 bg-brand-primary/5 p-6">
-          <BrandLogo subtitle="Admin Configuration Portal" variant="header" />
-        </div>
-
-        <CardContent className="space-y-4 p-6">
-          <div>
-            <h1 className="text-xl font-semibold text-brand-dark">Admin Login</h1>
-            <p className="text-sm text-slate-600">Sign in to manage users, templates, and system settings.</p>
-          </div>
-
-          {error ? <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
-            <Input placeholder="admin@zamtel.co.zm" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Password</label>
-            <Input placeholder="Enter password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <Button className="w-full" disabled={!canSubmit} onClick={onLogin}>
-            Login
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
+    <LoginShell>
+      <LoginForm
+        demoHint={SHOW_DEMO_HINT ? DEMO_HINT : null}
+        email={login.email}
+        password={login.password}
+        error={login.error}
+        fieldErrors={login.fieldErrors}
+        loading={login.loading}
+        canSubmit={login.canSubmit}
+        onEmailChange={login.setEmail}
+        onPasswordChange={login.setPassword}
+        onSubmit={() => void login.onLogin()}
+      />
+    </LoginShell>
   );
 }

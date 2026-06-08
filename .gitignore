@@ -32,3 +32,6 @@ Thumbs.db
 *.tsbuildinfo
 .prisma/
 
+# Extracted brand kit (source files live in public/brand)
+brand-assets-temp/
+

@@ -1,22 +1,33 @@
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-export function Table({children}:{children:ReactNode}){
+export function Table({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-brand-dark/10 bg-white">
+    <div className="overflow-x-auto rounded-card border border-zamtel-border bg-zamtel-bg shadow-card">
       <table className="min-w-full text-sm">{children}</table>
     </div>
   );
 }
 
-export function Th({children}:{children:ReactNode}){
-  return <th className="border-b border-brand-dark/10 bg-brand-primary/10 px-3 py-2 text-left font-semibold text-brand-dark">{children}</th>;
+export function Th({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <th
+      className={cn(
+        "border-b border-brand-dark/25 bg-brand-dark px-3 py-3 text-left text-xs font-bold uppercase tracking-wide text-white",
+        className,
+      )}
+    >
+      {children}
+    </th>
+  );
 }
 
-export function Td({children}:{children:ReactNode}){
-  return <td className="border-b border-brand-dark/5 px-3 py-3 text-slate-700">{children}</td>;
+export function Td({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <td className={cn("border-b border-zamtel-border bg-white px-3 py-3.5 text-zamtel-text", className)}>{children}</td>
+  );
 }
 
-export function Tr({children}:{children:ReactNode}){
-  return <tr>{children}</tr>;
+export function Tr({ children }: { children: ReactNode }) {
+  return <tr className="rf-table-row even:bg-brand-primary/[0.03] hover:bg-brand-primary/8">{children}</tr>;
 }
-

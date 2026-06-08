@@ -1,27 +1,40 @@
 # Admin Frontend Session Memory
 
-## Brand Palette (Official)
-- Primary Green: `#008542`
-- Dark Green: `#015217`
-- Lime Green: `#A9DD00`
-- White: `#FFFFFF`
+> **Last updated:** 2026-06-04
 
-## Latest Session Summary
-- Date: 2026-06-02
-- Focus: Functional admin configuration prototype with local mock state
-- Completed:
-  - `src/lib/local-store.tsx` — users, departments, templates, template fields, settings
-  - Functional pages: login, dashboard, users, departments, roles, templates, template detail, reports, settings
-  - `Dialog` component for modals
-- Frontend actions implemented:
-  - Mock login; users add/edit/activate; department manager edit; roles permission dialog (read-only)
-  - Templates search/filter/toggle active; template fields add/edit/delete with confirmation
-  - Reports department filter; settings save with success banner
-- What is working:
-  - Lint/build passing; Zamtel-branded admin shell
-- What remains mock/local only:
-  - State resets on refresh; no real auth/API
-- What backend needs to connect later:
-  - Admin auth, user/department/template CRUD APIs, settings persistence
-- Next recommended task:
-  - Backend admin APIs + Prisma seeds for templates/fields
+## Brand palette
+
+`#008542`, `#015217`, `#A9DD00`, `#FFFFFF`
+
+## Ports
+
+- Admin: **3001**
+- API: **4000** — `NEXT_PUBLIC_API_URL` in `.env.local`
+
+## Integration
+
+All pages use NestJS: dashboard, users, departments, roles (read-only), templates + fields, reports, settings.
+
+## Login
+
+- Email: `admin@requestflow.local`
+- Role in DB: **`Admin`** (user's full name is "System Admin")
+- `users-api.ts` accepts `Admin` or `System Admin`
+
+## Auth / hydration
+
+- `AuthProvider` (`auth-context.tsx`): initial state logged out; `useEffect` loads JWT + sets `authReady`
+- `RequireAdminAuth`: shows "Loading…" until `authReady`, then shell or redirect
+
+## Dev
+
+```bash
+cd backend && npm run start:dev
+cd admin-frontend && npm run dev
+```
+
+`npm run dev` = webpack (OneDrive-safe). `npm run dev:turbo` if needed.
+
+## Docs
+
+[`AGENTS.md`](../AGENTS.md), [`docs/LOCAL_RUN.md`](../docs/LOCAL_RUN.md)

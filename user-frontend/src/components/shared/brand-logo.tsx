@@ -6,27 +6,35 @@ type Props = {
   className?: string;
 };
 
-export function BrandLogo({ subtitle = "Internal Request System", variant = "sidebar", className }: Props) {
+const LOGO_ON_GREEN = "/brand/zamtel-logo-on-green.svg";
+const LOGO_ON_WHITE = "/brand/zamtel-logo-on-white.svg";
+
+export function BrandLogo({ subtitle = "Internal Requests", variant = "sidebar", className }: Props) {
   const isSidebar = variant === "sidebar";
+  const logoSrc = isSidebar ? LOGO_ON_GREEN : LOGO_ON_WHITE;
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <div
-        className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border text-[10px] font-semibold uppercase tracking-wide",
-          isSidebar ? "border-white/30 bg-white/10 text-white" : "border-brand-dark/20 bg-brand-primary/5 text-brand-dark",
-        )}
-        aria-label="Zamtel logo placeholder"
-        title="Zamtel Logo (placeholder)"
-      >
-        Zamtel
-      </div>
-
-      <div className="min-w-0">
-        <p className={cn("truncate text-sm font-semibold", isSidebar ? "text-white" : "text-brand-dark")}>RequestFlow</p>
-        <p className={cn("truncate text-xs", isSidebar ? "text-white/80" : "text-slate-600")}>{subtitle}</p>
+      <img
+        src={logoSrc}
+        alt="Zamtel"
+        width={isSidebar ? 44 : 40}
+        height={isSidebar ? 44 : 40}
+        className={cn("shrink-0 object-contain", isSidebar ? "h-11 w-11" : "h-10 w-10")}
+      />
+      <div className="min-w-0 flex-1">
+        <p className={cn("text-sm font-bold leading-tight", isSidebar ? "text-white" : "text-brand-dark")}>
+          RequestFlow
+        </p>
+        <p
+          className={cn(
+            "text-[11px] leading-snug",
+            isSidebar ? "text-white/75" : "text-zamtel-muted",
+          )}
+        >
+          {subtitle}
+        </p>
       </div>
     </div>
   );
 }
-

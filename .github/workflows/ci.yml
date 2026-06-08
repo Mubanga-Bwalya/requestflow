@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: requestflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d requestflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/requestflow
+      JWT_SECRET: ci-test-jwt-secret-minimum-32-characters-long
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      ALLOW_LEGACY_PLAINTEXT_PASSWORDS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply database SQL
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/001_create_schema.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/002_seed_core_data.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/004_system_settings.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/008_system_events.sql
+      - run: npm ci
+        working-directory: backend
+      - run: npm run prisma:validate
+        working-directory: backend
+      - run: npm run prisma:generate
+        working-directory: backend
+      - run: npm run typecheck
+        working-directory: backend
+      - run: npm run build
+        working-directory: backend
+      - run: npm run test
+        working-directory: backend
+      - run: npm run test:e2e
+        working-directory: backend
+      - run: npm run lint
+        working-directory: backend
+
+  user-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: user-frontend/package-lock.json
+      - run: npm ci
+        working-directory: user-frontend
+      - run: npm run typecheck
+        working-directory: user-frontend
+      - run: npm run lint
+        working-directory: user-frontend
+      - run: npm run build
+        working-directory: user-frontend
+
+  admin-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: admin-frontend/package-lock.json
+      - run: npm ci
+        working-directory: admin-frontend
+      - run: npm run typecheck
+        working-directory: admin-frontend
+      - run: npm run lint
+        working-directory: admin-frontend
+      - run: npm run build
+        working-directory: admin-frontend

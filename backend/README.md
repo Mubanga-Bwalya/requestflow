@@ -1,98 +1,110 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# RequestFlow API (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> **Last updated:** 2026-06-03 — Prisma client aligned with `backend/database/001_create_schema.sql`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Setup
 
 ```bash
-$ npm install
+cp .env.example .env
+npm install
+npm run prisma:generate
+npm run build
+npm run start:dev
 ```
 
-## Compile and run the project
+Ensure PostgreSQL has schema + seed + `004_system_settings.sql` applied. See [`database/README.md`](database/README.md).
 
-```bash
-# development
-$ npm run start
+Base URL: **http://localhost:4000**
 
-# watch mode
-$ npm run start:dev
+## Health
 
-# production mode
-$ npm run start:prod
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | `{ status: "ok", service: "RequestFlow API" }` |
 
-## Run tests
+## Users & roles
 
-```bash
-# unit tests
-$ npm run test
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/users` | List users (`?departmentName=HR` filters by dept) |
+| GET | `/users/by-email/:email` | Profile lookup (not for login) |
+| POST | `/users` | Create user (optional `password`; defaults to `requestflow`) |
+| PATCH | `/users/:id` | Update user (optional `password`) |
+| GET | `/roles` | List roles |
 
-# e2e tests
-$ npm run test:e2e
+## Auth
 
-# test coverage
-$ npm run test:cov
-```
+All routes except `/health` and `POST /auth/login` require `Authorization: Bearer <token>`.
 
-## Deployment
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/auth/login` | Returns `{ user, accessToken, expiresIn }` (passwords bcrypt; demo `requestflow`) |
+| POST | `/auth/login?adminOnly=true` | Same; `403` if role is not Admin / System Admin |
+| GET | `/auth/me` | Current user profile from JWT |
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Migrate plain-text DB passwords: `npm run hash-passwords`
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Departments & templates
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/departments` | List (`?activeOnly=false`) |
+| GET | `/departments/:id` | Detail |
+| PATCH | `/departments/:id` | Update manager, etc. |
+| GET | `/request-templates` | List (`?departmentName=`, `?departmentId=`) |
+| GET | `/request-templates/:id` | Template + fields |
+| GET | `/request-templates/:id/fields` | Fields only |
+| PATCH | `/request-templates/:id` | e.g. `isActive` |
+| POST | `/request-templates/:id/fields` | Add field |
+| PATCH | `/request-templates/:templateId/fields/:fieldId` | Update field |
+| PATCH | `/request-templates/:templateId/fields/:fieldId/deactivate` | Deactivate field |
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Requests
 
-## Resources
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/requests` | Create request |
+| GET | `/requests` | List (`?createdByUserId=`, `?targetDepartmentName=`, `?status=`) |
+| GET | `/requests/:id` | Detail |
+| PATCH | `/requests/:id/status` | Status transition |
+| POST | `/requests/:id/request-missing-information` | Manager asks for info |
+| POST | `/requests/:id/provide-information` | Requester supplies info |
 
-Check out a few resources that may come in handy when working with NestJS:
+## Assignments & milestones
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/assignments` | List (`?userId=`, `?requestId=`) |
+| GET | `/assignments/:id` | Detail + milestones |
+| POST | `/assignments` | Create assignment |
+| PATCH | `/assignments/:id/status` | e.g. `READY_FOR_REVIEW`, `COMPLETED` |
+| POST | `/assignments/:id/milestones` | Add milestone |
+| PATCH | `/assignments/:assignmentId/milestones/:milestoneId` | Update milestone |
 
-## Support
+When assignment progress reaches 100% via milestones, request status syncs to `COMPLETED`.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Notifications & settings
 
-## Stay in touch
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/notifications` | User notifications (`?userId=`) |
+| PATCH | `/notifications/:id/read` | Mark read |
+| PATCH | `/notifications/mark-all-read` | Mark all read |
+| GET | `/system-settings` | Public settings row |
+| PATCH | `/system-settings` | Admin update |
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Admin analytics
 
-## License
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin/dashboard` | Summary cards |
+| GET | `/admin/reports` | Report cards (`?departmentName=`) |
+| GET | `/admin/activity` | Recent activity (`?limit=`) |
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Environment
+
+`DATABASE_URL` in `.env` must point at database `requestflow` (see `.env.example`).
+
+## Auth (MVP)
+
+JWT auth: `POST /auth/login` returns `accessToken`; frontends store it in `localStorage` and send `Authorization: Bearer`. Passwords are bcrypt (`requestflow` for demo users).

@@ -1,3 +1,5 @@
+// Aligned with backend/database/001_create_schema.sql (manual SQL is source of truth).
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -20,6 +22,8 @@ enum RequestStatus {
   REOPENED
   REJECTED
   CANCELLED
+
+  @@map("request_status")
 }
 
 enum Priority {
@@ -27,20 +31,8 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
-}
 
-enum AssignmentStatus {
-  PENDING
-  ACTIVE
-  COMPLETED
-  CANCELLED
-}
-
-enum MilestoneStatus {
-  TODO
-  IN_PROGRESS
-  BLOCKED
-  COMPLETED
+  @@map("priority")
 }
 
 enum FieldType {
@@ -53,25 +45,421 @@ enum FieldType {
   NUMBER
   CHECKBOX
   EMAIL
+
+  @@map("field_type")
+}
+
+enum AssignmentStatus {
+  NOT_STARTED
+  ASSIGNED
+  IN_PROGRESS
+  READY_FOR_REVIEW
+  COMPLETED
+  REOPENED
+  CANCELLED
+
+  @@map("assignment_status")
+}
+
+enum MilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+
+  @@map("milestone_status")
+}
+
+enum MissingInformationStatus {
+  OPEN
+  RESOLVED
+  CANCELLED
+
+  @@map("missing_information_status")
 }
 
 enum NotificationType {
-  REQUEST_UPDATED
-  ASSIGNMENT_UPDATED
+  REQUEST_SUBMITTED
+  REQUEST_NEEDS_INFORMATION
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  REQUEST_ASSIGNED
+  REQUEST_IN_PROGRESS
+  REQUEST_COMPLETED
+  REQUEST_APPROVED
+  REQUEST_REOPENED
+  TASK_ASSIGNED
   MILESTONE_UPDATED
   SYSTEM
+
+  @@map("notification_type")
 }
 
-model Department { id String @id @default(uuid()) name String @unique managerId String? manager User? @relation("DepartmentManager", fields: [managerId], references: [id]) users User[] @relation("DepartmentUsers") templates RequestTemplate[] requests Request[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Role { id String @id @default(uuid()) name String @unique users User[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model User { id String @id @default(uuid()) email String @unique fullName String departmentId String? roleId String? department Department? @relation("DepartmentUsers", fields: [departmentId], references: [id]) role Role? @relation(fields: [roleId], references: [id]) managedDepartment Department? @relation("DepartmentManager") createdRequests Request[] @relation("CreatedRequests") assignmentMemberships AssignmentMember[] milestoneOwnership Milestone[] notifications Notification[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model RequestTemplate { id String @id @default(uuid()) name String description String? departmentId String department Department @relation(fields: [departmentId], references: [id]) fields TemplateField[] requests Request[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model TemplateField { id String @id @default(uuid()) label String key String fieldType FieldType required Boolean @default(false) options String? requestTemplateId String requestTemplate RequestTemplate @relation(fields: [requestTemplateId], references: [id]) answers RequestFieldAnswer[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Request { id String @id @default(uuid()) title String description String? status RequestStatus @default(DRAFT) priority Priority @default(MEDIUM) progress Int @default(0) createdById String targetDepartmentId String requestTemplateId String createdBy User @relation("CreatedRequests", fields: [createdById], references: [id]) targetDepartment Department @relation(fields: [targetDepartmentId], references: [id]) requestTemplate RequestTemplate @relation(fields: [requestTemplateId], references: [id]) fieldAnswers RequestFieldAnswer[] assignment Assignment? attachments Attachment[] activityLogs ActivityLog[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model RequestFieldAnswer { id String @id @default(uuid()) requestId String templateFieldId String value String? request Request @relation(fields: [requestId], references: [id]) templateField TemplateField @relation(fields: [templateFieldId], references: [id]) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Assignment { id String @id @default(uuid()) requestId String @unique status AssignmentStatus @default(PENDING) progress Int @default(0) request Request @relation(fields: [requestId], references: [id]) members AssignmentMember[] milestones Milestone[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model AssignmentMember { id String @id @default(uuid()) assignmentId String userId String assignment Assignment @relation(fields: [assignmentId], references: [id]) user User @relation(fields: [userId], references: [id]) milestones Milestone[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Milestone { id String @id @default(uuid()) assignmentId String assignmentMemberId String? ownerUserId String? title String description String? progress Int @default(0) status MilestoneStatus @default(TODO) assignment Assignment @relation(fields: [assignmentId], references: [id]) assignmentMember AssignmentMember? @relation(fields: [assignmentMemberId], references: [id]) ownerUser User? @relation(fields: [ownerUserId], references: [id]) attachments Attachment[] activityLogs ActivityLog[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Attachment { id String @id @default(uuid()) fileName String filePath String requestId String? milestoneId String? request Request? @relation(fields: [requestId], references: [id]) milestone Milestone? @relation(fields: [milestoneId], references: [id]) createdAt DateTime @default(now()) }
-model Notification { id String @id @default(uuid()) userId String type NotificationType title String message String isRead Boolean @default(false) user User @relation(fields: [userId], references: [id]) createdAt DateTime @default(now()) }
-model ActivityLog { id String @id @default(uuid()) action String actorUserId String? requestId String? assignmentId String? milestoneId String? metadata String? request Request? @relation(fields: [requestId], references: [id]) milestone Milestone? @relation(fields: [milestoneId], references: [id]) createdAt DateTime @default(now()) }
+enum ActivityAction {
+  REQUEST_CREATED
+  REQUEST_SUBMITTED
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  REQUEST_NEEDS_INFORMATION
+  REQUEST_ASSIGNED
+  REQUEST_PROGRESS_UPDATED
+  REQUEST_COMPLETED
+  REQUEST_APPROVED
+  REQUEST_REOPENED
+  ASSIGNMENT_CREATED
+  ASSIGNMENT_MEMBER_ADDED
+  MILESTONE_CREATED
+  MILESTONE_UPDATED
+  ATTACHMENT_UPLOADED
+  NOTIFICATION_CREATED
+
+  @@map("activity_action")
+}
+
+enum SystemEventLevel {
+  WARN
+  ERROR
+
+  @@map("system_event_level")
+}
+
+model Department {
+  id                     String   @id @default(uuid()) @db.Uuid
+  name                   String   @unique
+  description            String?
+  managerUserId          String?  @unique @map("manager_user_id") @db.Uuid
+  externalDepartmentCode String?  @map("external_department_code")
+  isActive               Boolean  @default(true) @map("is_active")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  manager          User?             @relation("DepartmentManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  users            User[]            @relation("DepartmentUsers")
+  templates        RequestTemplate[]
+  sourceRequests   Request[]         @relation("SourceDepartment")
+  targetRequests   Request[]         @relation("TargetDepartment")
+  assignments      Assignment[]
+
+  @@map("departments")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id                 String   @id @default(uuid()) @db.Uuid
+  fullName           String   @map("full_name")
+  email              String   @unique
+  passwordHash       String?  @map("password_hash")
+  departmentId       String?  @map("department_id") @db.Uuid
+  roleId             String?  @map("role_id") @db.Uuid
+  jobTitle           String?  @map("job_title")
+  externalEmployeeId String?  @map("external_employee_id")
+  profileImageUrl    String?  @map("profile_image_url")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  department              Department?  @relation("DepartmentUsers", fields: [departmentId], references: [id], onDelete: SetNull)
+  role                    Role?        @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  managedDepartment       Department?  @relation("DepartmentManager")
+  createdRequests         Request[]    @relation("CreatedByUser")
+  assignedAssignments     Assignment[] @relation("AssignedByUser")
+  assignmentMemberships   AssignmentMember[]
+  ownedMilestones         Milestone[]  @relation("MilestoneOwner")
+  uploadedAttachments     Attachment[]
+  notifications           Notification[]
+  activityLogs            ActivityLog[]
+  missingInfoRequests     MissingInformationRequest[]
+  systemEvents            SystemEvent[]
+
+  @@map("users")
+}
+
+model RequestTemplate {
+  id           String   @id @default(uuid()) @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  name         String
+  description  String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  department Department      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  fields     TemplateField[]
+  requests   Request[]
+
+  @@unique([departmentId, name])
+  @@map("request_templates")
+}
+
+model TemplateField {
+  id           String    @id @default(uuid()) @db.Uuid
+  templateId   String    @map("template_id") @db.Uuid
+  label        String
+  fieldKey     String    @map("field_key")
+  fieldType    FieldType @map("field_type")
+  isRequired   Boolean   @default(false) @map("is_required")
+  options      Json?
+  helpText     String?   @map("help_text")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  template              RequestTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers               RequestFieldAnswer[]
+  missingInfoItems      MissingInformationItem[]
+
+  @@unique([templateId, fieldKey])
+  @@map("template_fields")
+}
+
+model Request {
+  id                     String        @id @default(uuid()) @db.Uuid
+  requestNumber          String        @unique @map("request_number")
+  title                  String
+  description            String?
+  createdByUserId        String        @map("created_by_user_id") @db.Uuid
+  sourceDepartmentId     String        @map("source_department_id") @db.Uuid
+  targetDepartmentId     String        @map("target_department_id") @db.Uuid
+  templateId             String        @map("template_id") @db.Uuid
+  status                 RequestStatus @default(DRAFT)
+  priority               Priority      @default(MEDIUM)
+  deadline               DateTime?
+  progressPercentage     Int           @default(0) @map("progress_percentage")
+  currentStage           String?       @map("current_stage")
+  expectedCompletionDate DateTime?     @map("expected_completion_date") @db.Date
+  submittedAt            DateTime?     @map("submitted_at")
+  completedAt            DateTime?     @map("completed_at")
+  approvedAt             DateTime?     @map("approved_at")
+  rejectedAt             DateTime?     @map("rejected_at")
+  cancelledAt            DateTime?     @map("cancelled_at")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  createdByUser           User                        @relation("CreatedByUser", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  sourceDepartment        Department                  @relation("SourceDepartment", fields: [sourceDepartmentId], references: [id], onDelete: Restrict)
+  targetDepartment        Department                  @relation("TargetDepartment", fields: [targetDepartmentId], references: [id], onDelete: Restrict)
+  template                RequestTemplate               @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  fieldAnswers            RequestFieldAnswer[]
+  missingInfoRequests     MissingInformationRequest[]
+  assignment              Assignment?
+  attachments             Attachment[]
+  notifications           Notification[]                @relation("NotificationRequest")
+  activityLogs            ActivityLog[]
+
+  @@map("requests")
+}
+
+model RequestFieldAnswer {
+  id              String   @id @default(uuid()) @db.Uuid
+  requestId       String   @map("request_id") @db.Uuid
+  templateFieldId String   @map("template_field_id") @db.Uuid
+  answerText      String?  @map("answer_text")
+  answerJson      Json?    @map("answer_json")
+  fileUrl         String?  @map("file_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  request       Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  templateField TemplateField @relation(fields: [templateFieldId], references: [id], onDelete: Restrict)
+
+  @@unique([requestId, templateFieldId])
+  @@map("request_field_answers")
+}
+
+model MissingInformationRequest {
+  id                String                   @id @default(uuid()) @db.Uuid
+  requestId         String                   @map("request_id") @db.Uuid
+  requestedByUserId String                   @map("requested_by_user_id") @db.Uuid
+  status            MissingInformationStatus @default(OPEN)
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  resolvedAt        DateTime?                @map("resolved_at")
+
+  request     Request                    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestedBy User                       @relation(fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  items       MissingInformationItem[]
+
+  @@map("missing_information_requests")
+}
+
+model MissingInformationItem {
+  id                         String    @id @default(uuid()) @db.Uuid
+  missingInformationRequestId String   @map("missing_information_request_id") @db.Uuid
+  templateFieldId            String?   @map("template_field_id") @db.Uuid
+  reasonLabel                String    @map("reason_label")
+  isResolved                 Boolean   @default(false) @map("is_resolved")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  resolvedAt                 DateTime? @map("resolved_at")
+
+  missingInformationRequest MissingInformationRequest @relation(fields: [missingInformationRequestId], references: [id], onDelete: Cascade)
+  templateField             TemplateField?            @relation(fields: [templateFieldId], references: [id], onDelete: SetNull)
+
+  @@map("missing_information_items")
+}
+
+model Assignment {
+  id                     String           @id @default(uuid()) @db.Uuid
+  requestId              String           @unique @map("request_id") @db.Uuid
+  title                  String
+  description            String?
+  assignedByUserId       String           @map("assigned_by_user_id") @db.Uuid
+  departmentId           String           @map("department_id") @db.Uuid
+  status                 AssignmentStatus @default(NOT_STARTED)
+  progressPercentage     Int              @default(0) @map("progress_percentage")
+  deadline               DateTime?
+  expectedCompletionDate DateTime?        @map("expected_completion_date") @db.Date
+  readyForReviewAt       DateTime?        @map("ready_for_review_at")
+  completedAt            DateTime?        @map("completed_at")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  request      Request            @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  assignedBy   User               @relation("AssignedByUser", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+  department   Department         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  members      AssignmentMember[]
+  milestones   Milestone[]
+  notifications Notification[]    @relation("NotificationAssignment")
+  activityLogs ActivityLog[]
+
+  @@map("assignments")
+}
+
+model AssignmentMember {
+  id                String   @id @default(uuid()) @db.Uuid
+  assignmentId      String   @map("assignment_id") @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  roleOnAssignment  String?  @map("role_on_assignment")
+  isManagerMember   Boolean  @default(false) @map("is_manager_member")
+  joinedAt          DateTime @default(now()) @map("joined_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([assignmentId, userId])
+  @@map("assignment_members")
+}
+
+model Milestone {
+  id                 String          @id @default(uuid()) @db.Uuid
+  assignmentId       String          @map("assignment_id") @db.Uuid
+  ownerUserId        String          @map("owner_user_id") @db.Uuid
+  title              String
+  description        String?
+  status             MilestoneStatus @default(NOT_STARTED)
+  progressPercentage Int             @default(0) @map("progress_percentage")
+  deadline           DateTime?
+  completedAt        DateTime?       @map("completed_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  assignment    Assignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  owner         User           @relation("MilestoneOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  attachments   Attachment[]
+  notifications Notification[] @relation("NotificationMilestone")
+  activityLogs  ActivityLog[]
+
+  @@map("milestones")
+}
+
+model Attachment {
+  id               String   @id @default(uuid()) @db.Uuid
+  requestId        String?  @map("request_id") @db.Uuid
+  milestoneId      String?  @map("milestone_id") @db.Uuid
+  uploadedByUserId String   @map("uploaded_by_user_id") @db.Uuid
+  fileName         String   @map("file_name")
+  fileUrl          String   @map("file_url")
+  fileType         String?  @map("file_type")
+  fileSize         BigInt?  @map("file_size")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  request    Request?   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  milestone  Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  uploadedBy User       @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@map("attachments")
+}
+
+model Notification {
+  id                  String           @id @default(uuid()) @db.Uuid
+  userId              String           @map("user_id") @db.Uuid
+  type                NotificationType
+  title               String
+  message             String
+  relatedRequestId    String?          @map("related_request_id") @db.Uuid
+  relatedAssignmentId String?          @map("related_assignment_id") @db.Uuid
+  relatedMilestoneId  String?          @map("related_milestone_id") @db.Uuid
+  isRead              Boolean          @default(false) @map("is_read")
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedRequest    Request?    @relation("NotificationRequest", fields: [relatedRequestId], references: [id], onDelete: SetNull)
+  relatedAssignment Assignment? @relation("NotificationAssignment", fields: [relatedAssignmentId], references: [id], onDelete: SetNull)
+  relatedMilestone  Milestone?  @relation("NotificationMilestone", fields: [relatedMilestoneId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id           String         @id @default(uuid()) @db.Uuid
+  requestId    String?        @map("request_id") @db.Uuid
+  assignmentId String?        @map("assignment_id") @db.Uuid
+  milestoneId  String?        @map("milestone_id") @db.Uuid
+  userId       String?        @map("user_id") @db.Uuid
+  action       ActivityAction
+  description  String
+  oldValue     Json?          @map("old_value")
+  newValue     Json?          @map("new_value")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  request    Request?    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  assignment Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  milestone  Milestone?  @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("activity_logs")
+}
+
+model SystemEvent {
+  id         String           @id @default(uuid()) @db.Uuid
+  level      SystemEventLevel
+  code       String           @db.VarChar(64)
+  message    String
+  httpMethod String?          @map("http_method") @db.VarChar(16)
+  path       String?
+  statusCode Int?             @map("status_code")
+  userId     String?          @map("user_id") @db.Uuid
+  requestId  String?          @map("request_id") @db.VarChar(64)
+  context    Json?
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@map("system_events")
+}
+
+model SystemSettings {
+  id                    String   @id @default("default")
+  systemName            String   @default("RequestFlow") @map("system_name")
+  defaultPriority       Priority @default(MEDIUM) @map("default_priority")
+  allowUploads          Boolean  @default(true) @map("allow_uploads")
+  notifyOnStatusChange  Boolean  @default(true) @map("notify_on_status_change")
+  fileUploadLimitMb     Int      @default(25) @map("file_upload_limit_mb")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

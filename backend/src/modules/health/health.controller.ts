@@ -1,4 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-@Controller('health')
-export class HealthController { @Get() getHealth(){ return { status: 'ok', service: 'RequestFlow API' }; } }
+import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../../common/decorators/public.decorator';
 
+@Controller('health')
+@SkipThrottle()
+export class HealthController {
+  @Public()
+  @Get()
+  getHealth() {
+    return { status: 'ok', service: 'RequestFlow API' };
+  }
+}
