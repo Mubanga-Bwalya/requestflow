@@ -28,9 +28,10 @@ psql -U postgres -d requestflow -f backend/database/004_system_settings.sql
 psql -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
 psql -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
 psql -U postgres -d requestflow -f backend/database/008_system_events.sql
+psql -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
 ```
 
-`006` adds list-query indexes (safe to re-run). `007` adds concurrency-safe request number counters (required for new installs). `008` adds the admin **System health** error log on the dashboard.
+`006` adds list-query indexes (safe to re-run). `007` adds concurrency-safe request number counters (required for new installs). `008` adds the admin **System health** error log on the dashboard. `010` adds extra list/search indexes and `pg_trgm` GIN indexes (safe to re-run; on managed Postgres enable `pg_trgm` first).
 
 If the DB still has **plain-text** passwords (old seed), hash demo users:
 
@@ -89,11 +90,11 @@ Default dev uses **webpack** (stable on Windows/OneDrive). Optional: `npm run de
 | Email | Portal | Role (DB) |
 |-------|--------|-----------|
 | admin@requestflow.local | Admin :3001 | **Admin** |
-| jane.employee@requestflow.local | User :3000 | Employee |
-| henry.hr@requestflow.local | User | HR Manager |
-| mary.marketing@requestflow.local | User | Marketing Manager |
-| helen.hr@requestflow.local | User | HR Team Member |
-| mark.marketing@requestflow.local | User | Marketing Team Member |
+| jane@requestflow.local | User :3000 | Employee |
+| henry@requestflow.local | User | HR Manager |
+| mary@requestflow.local | User | Marketing Manager |
+| helen@requestflow.local | User | HR Team Member |
+| mark@requestflow.local | User | Marketing Team Member |
 
 Note: admin user's **display name** is "System Admin"; the **role** stored in `roles.name` is `Admin`. Login uses `POST /auth/login` (admin portal adds `?adminOnly=true`).
 
@@ -109,7 +110,8 @@ Note: admin user's **display name** is "System Admin"; the **role** stored in `r
 | CORS / network errors | `NEXT_PUBLIC_API_URL=http://localhost:4000` in both `.env.local` |
 | `dist/main` missing | `cd backend && npm run build` |
 | `.next` ENOENT / tmp manifest | Stop dev server; `Remove-Item -Recurse -Force admin-frontend\.next`; `npm run dev` |
-| Slow compiles | Exclude `node_modules` / `.next` from OneDrive sync |
+| Slow compiles / sluggish dev UI | See **[DEV_PERFORMANCE.md](./DEV_PERFORMANCE.md)** — use `npm run dev` (webpack), not turbo on OneDrive; exclude `.next` from sync |
+| Too many test / load requests | `cd backend` then `npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/cleanup-dev-requests.ts` — resets to 5 demo requests |
 
 ## Full E2E test
 

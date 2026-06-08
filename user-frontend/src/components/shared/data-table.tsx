@@ -23,7 +23,10 @@ export function DataTable({ columns, rows }: { columns: DataTableColumn[]; rows:
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={i} className="rf-table-row even:bg-brand-primary/[0.02] hover:bg-brand-primary/[0.06]">
+              <tr
+                key={typeof row.id === "string" || typeof row.id === "number" ? String(row.id) : i}
+                className="rf-table-row even:bg-brand-primary/[0.02] hover:bg-brand-primary/[0.06]"
+              >
                 {columns.map((c) => (
                   <Td
                     key={c.key}

@@ -9,10 +9,10 @@ UPDATE users
 SET password_hash = 'requestflow', updated_at = NOW()
 WHERE email IN (
   'admin@requestflow.local',
-  'jane.employee@requestflow.local',
-  'henry.hr@requestflow.local',
-  'mary.marketing@requestflow.local',
-  'helen.hr@requestflow.local',
-  'mark.marketing@requestflow.local',
-  'musa.marketing@requestflow.local'
+  'jane@requestflow.local',
+  'henry@requestflow.local',
+  'mary@requestflow.local',
+  'helen@requestflow.local',
+  'mark@requestflow.local',
+  'musa@requestflow.local'
 );

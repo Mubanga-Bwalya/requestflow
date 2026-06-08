@@ -7,7 +7,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { fetchDepartmentRequests } from "@/lib/requests-api";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { peekApiCache } from "@/lib/query-cache";
-import { statusLabel, type ListTabBucket } from "@/lib/request-status-groups";
+import { type ListTabBucket } from "@/lib/request-status-groups";
 import type { RequestItem } from "@/types/request";
 
 export function useDepartmentInbox(dept: string | null | undefined) {
@@ -98,9 +98,11 @@ export function useDepartmentInbox(dept: string | null | undefined) {
         id: r.id,
         title: r.title,
         requestNumber: r.requestNumber,
-        requestedBy: r.requestedBy,
+        requestedBy: r.requestedBy ?? "—",
+        sourceDepartment: r.sourceDepartment ?? r.department ?? "—",
         requestType: r.requestType,
-        status: statusLabel(r.status),
+        priority: r.priority ?? "—",
+        status: r.status,
         progress: `${r.progress}%`,
         deadline: r.deadline || "—",
         assignedMembers: r.assignedMembers || "—",

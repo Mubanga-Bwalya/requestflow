@@ -13,12 +13,14 @@ import {
 } from './e2e/auth-helpers';
 import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 import { createSubmittedHrRequest } from './e2e/hr-request.helpers';
+import { resolveSeedUsers, type ResolvedSeedUsers } from './e2e/resolve-users';
 import { SEED } from './e2e/seed-constants';
 
 describe('Security and workflow regression (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let dbReady = false;
+  let users: ResolvedSeedUsers;
 
   beforeAll(async () => {
     const ctx = await createE2eApp();
@@ -28,6 +30,7 @@ describe('Security and workflow regression (e2e)', () => {
     if (dbReady) {
       try {
         await loginJane(app);
+        users = await resolveSeedUsers(prisma);
       } catch {
         dbReady = false;
       }
@@ -55,7 +58,7 @@ describe('Security and workflow regression (e2e)', () => {
         .post(`/requests/${requestId}/request-missing-information`)
         .set(authHeader(henryToken))
         .send({ items: [{ reasonLabel: 'Clarify scope' }] })
-        .expect(200);
+        .expect(201);
 
       await request(app.getHttpServer())
         .post(`/requests/${requestId}/provide-information`)
@@ -88,7 +91,7 @@ describe('Security and workflow regression (e2e)', () => {
         .patch(`/requests/${requestId}/status`)
         .set(authHeader(maryToken))
         .send({ status: 'ACCEPTED' })
-        .expect(403);
+        .expect(404);
     });
 
     it('POST /assignments — non-manager returns 403', async () => {
@@ -109,7 +112,7 @@ describe('Security and workflow regression (e2e)', () => {
         .set(authHeader(janeToken))
         .send({
           requestId,
-          memberUserIds: [SEED.users.helenHr],
+          memberUserIds: [users.helenHr],
         })
         .expect(403);
     });
@@ -135,7 +138,7 @@ describe('Security and workflow regression (e2e)', () => {
 
       const notification = await prisma.notification.create({
         data: {
-          userId: SEED.users.helenHr,
+          userId: users.helenHr,
           type: NotificationType.REQUEST_SUBMITTED,
           title: 'E2E notification',
           message: 'Belongs to Helen only',
@@ -163,7 +166,7 @@ describe('Security and workflow regression (e2e)', () => {
       const adminToken = await loginAdmin(app);
 
       await prisma.user.update({
-        where: { id: SEED.users.admin },
+        where: { id: users.admin },
         data: { roleId: SEED.role.employee },
       });
 
@@ -179,7 +182,7 @@ describe('Security and workflow regression (e2e)', () => {
           .expect(403);
       } finally {
         await prisma.user.update({
-          where: { id: SEED.users.admin },
+          where: { id: users.admin },
           data: { roleId: SEED.role.admin },
         });
       }

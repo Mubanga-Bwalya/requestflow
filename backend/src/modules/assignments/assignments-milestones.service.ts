@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ActivityAction, NotificationType } from '@prisma/client';
+import { ActivityAction, AssignmentStatus, NotificationType } from '@prisma/client';
 import { AccessPolicyService } from '../../common/access-policy.service';
 import type { RequestUser } from '../../common/auth.types';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
+import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { notifyRequesterWorkCompleted } from '../notifications/workflow-notifications';
@@ -18,7 +20,18 @@ import {
   recomputeAssignmentProgress,
   syncRequestProgressFromAssignment,
 } from './assignment.mapper';
+import { withAssignmentProgressLock } from './assignment-progress-lock';
+import { invalidateWorkspaceForAssignment } from './assignment-workspace-cache';
 import { AssignmentsQueryService } from './assignments-query.service';
+
+function resolveAssignmentStatusFromProgress(
+  priorStatus: AssignmentStatus,
+  progressPct: number,
+): AssignmentStatus {
+  if (progressPct >= 100) return 'COMPLETED';
+  if (progressPct > 0 && priorStatus === 'ASSIGNED') return 'IN_PROGRESS';
+  return priorStatus;
+}
 
 @Injectable()
 export class AssignmentsMilestonesService {
@@ -27,6 +40,7 @@ export class AssignmentsMilestonesService {
     private readonly notifications: NotificationsService,
     private readonly query: AssignmentsQueryService,
     private readonly access: AccessPolicyService,
+    private readonly cache: CacheService,
   ) {}
 
   async createMilestone(
@@ -40,7 +54,7 @@ export class AssignmentsMilestonesService {
 
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
-      include: { milestones: true, members: true, request: true },
+      include: { members: true, request: true },
     });
     if (!assignment) throw new NotFoundException('Assignment not found');
 
@@ -64,6 +78,8 @@ export class AssignmentsMilestonesService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      await withAssignmentProgressLock(tx, assignmentId);
+
       await tx.milestone.create({
         data: {
           assignmentId,
@@ -77,14 +93,20 @@ export class AssignmentsMilestonesService {
         },
       });
 
+      const prior = await tx.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { status: true },
+      });
+      if (!prior) throw new NotFoundException('Assignment not found');
+
       const allMilestones = await tx.milestone.findMany({
         where: { assignmentId },
       });
       const progressPct = recomputeAssignmentProgress(allMilestones);
-      let assignmentStatus = assignment.status;
-      if (progressPct >= 100) assignmentStatus = 'COMPLETED';
-      else if (progressPct > 0 && assignmentStatus === 'ASSIGNED')
-        assignmentStatus = 'IN_PROGRESS';
+      const assignmentStatus = resolveAssignmentStatusFromProgress(
+        prior.status,
+        progressPct,
+      );
 
       await tx.assignment.update({
         where: { id: assignmentId },
@@ -108,6 +130,14 @@ export class AssignmentsMilestonesService {
         },
       });
     });
+
+    await invalidateWorkspaceForAssignment(this.cache, this.prisma, {
+      requesterId: assignment.request.createdByUserId,
+      memberUserIds: assignment.members.map((m) => m.userId),
+      departmentId: assignment.departmentId,
+      actorId: user.id,
+    });
+    await invalidateAdminStatsCache(this.cache);
 
     return this.query.findOne(assignmentId, user);
   }
@@ -136,6 +166,14 @@ export class AssignmentsMilestonesService {
     let becameCompleted = false;
 
     await this.prisma.$transaction(async (tx) => {
+      await withAssignmentProgressLock(tx, assignmentId);
+
+      const prior = await tx.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { status: true },
+      });
+      if (!prior) throw new NotFoundException('Assignment not found');
+
       await tx.milestone.update({
         where: { id: milestoneId },
         data: {
@@ -150,13 +188,12 @@ export class AssignmentsMilestonesService {
         where: { assignmentId },
       });
       const progressPct = recomputeAssignmentProgress(allMilestones);
-      let assignmentStatus = milestone.assignment.status;
-      if (progressPct >= 100) assignmentStatus = 'COMPLETED';
-      else if (progressPct > 0 && assignmentStatus === 'ASSIGNED')
-        assignmentStatus = 'IN_PROGRESS';
+      const assignmentStatus = resolveAssignmentStatusFromProgress(
+        prior.status,
+        progressPct,
+      );
       becameCompleted =
-        assignmentStatus === 'COMPLETED' &&
-        milestone.assignment.status !== 'COMPLETED';
+        assignmentStatus === 'COMPLETED' && prior.status !== 'COMPLETED';
 
       await tx.assignment.update({
         where: { id: assignmentId },
@@ -204,6 +241,14 @@ export class AssignmentsMilestonesService {
         assignmentId,
       );
     }
+
+    await invalidateWorkspaceForAssignment(this.cache, this.prisma, {
+      requesterId: milestone.assignment.request.createdByUserId,
+      memberUserIds: milestone.assignment.members.map((m) => m.userId),
+      departmentId: milestone.assignment.departmentId,
+      actorId: user.id,
+    });
+    await invalidateAdminStatsCache(this.cache);
 
     return this.query.findOne(assignmentId, user);
   }

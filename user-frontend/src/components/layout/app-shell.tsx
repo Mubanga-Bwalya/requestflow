@@ -17,7 +17,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       <MobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader title={title} onMenuOpen={() => setMobileNavOpen(true)} />
-        <main className="rf-page-enter relative z-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="relative z-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
@@ -45,7 +45,7 @@ export function AppShell({ children, title }: { children: ReactNode; title: stri
         <MobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader title={title} onMenuOpen={() => setMobileNavOpen(true)} />
-          <main className="rf-page-enter relative z-0 flex-1 p-4 sm:p-6">{children}</main>
+          <main className="relative z-0 flex-1 p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </RequireAuth>

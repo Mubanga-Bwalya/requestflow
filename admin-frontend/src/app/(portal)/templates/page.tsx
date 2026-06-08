@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { TemplateCreateDialog } from "@/components/admin-templates/template-create-dialog";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
 import { PaginationBar } from "@/components/shared/pagination-bar";
@@ -15,6 +16,18 @@ import { updateTemplateActive } from "@/lib/templates-api";
 
 export default function Page() {
   const t = useAdminTemplates();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  async function toggleActive(id: string, active: boolean) {
+    if (togglingId) return;
+    setTogglingId(id);
+    try {
+      await updateTemplateActive(id, active);
+      await t.reload();
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   return (
     <>
@@ -78,21 +91,18 @@ export default function Page() {
                       type="button"
                       size="compact"
                       variant="destructive"
-                      onClick={async () => {
-                        await updateTemplateActive(row.id, false);
-                        await t.reload();
-                      }}
+                      loading={togglingId === row.id}
+                      disabled={togglingId !== null}
+                      onClick={() => void toggleActive(row.id, false)}
                     >
                       Deactivate
                     </Button>
                   ) : (
                     <TableActionButton
-                      onClick={async () => {
-                        await updateTemplateActive(row.id, true);
-                        await t.reload();
-                      }}
+                      disabled={togglingId !== null}
+                      onClick={() => void toggleActive(row.id, true)}
                     >
-                      Activate
+                      {togglingId === row.id ? "Activating…" : "Activate"}
                     </TableActionButton>
                   )}
                 </div>

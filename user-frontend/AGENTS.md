@@ -35,7 +35,7 @@ cd backend && npm run start:dev
 cd user-frontend && npm run dev   # :3000
 ```
 
-Copy `.env.example` → `.env.local`. Demo login: `jane.employee@requestflow.local` / `requestflow` (dev seed only). Set `NEXT_PUBLIC_SHOW_DEMO_HINTS=false` for production builds.
+Copy `.env.example` → `.env.local`. Demo login: `jane@requestflow.local` / `requestflow` (dev seed only). Set `NEXT_PUBLIC_SHOW_DEMO_HINTS=false` for production builds.
 
 ## Deployment
 

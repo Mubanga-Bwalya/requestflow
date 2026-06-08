@@ -24,6 +24,7 @@ export function AdminDashboardClient() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const cacheKey = "admin:dashboard:10";
     const cached = peekApiCache<AdminDashboardResponse>(cacheKey);
     if (cached) {
@@ -36,18 +37,24 @@ export function AdminDashboardClient() {
 
     Promise.all([fetchAdminDashboard(10), fetchAdminSystemEvents({ page: 1, limit: 12 })])
       .then(([dash, events]) => {
+        if (cancelled) return;
         setSummary(dash.summary);
         setActivity(dash.activity ?? []);
         setSystemEvents(events.items);
       })
       .catch(() => {
-        if (!cached) {
-          setSummary([]);
-          setActivity([]);
-          setSystemEvents([]);
-        }
+        if (cancelled || cached) return;
+        setSummary([]);
+        setActivity([]);
+        setSystemEvents([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -62,8 +69,8 @@ export function AdminDashboardClient() {
           </div>
         }
       />
-      <div className="rf-stagger space-y-6">
-        <div className="rf-stagger grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {loading
             ? Array.from({ length: 6 }, (_, i) => (
                 <Card key={`dashboard-skeleton-${i}`} className="relative overflow-hidden">

@@ -34,7 +34,7 @@ export function AppHeader({ title, onMenuOpen }: { title: string; onMenuOpen?: (
   }
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between gap-3 overflow-visible border-b border-brand-dark/10 bg-white/80 px-4 py-4 backdrop-blur transition-shadow duration-200 sm:px-6">
+    <header className="sticky top-0 z-40 flex items-center justify-between gap-3 overflow-visible border-b border-brand-dark/10 bg-white px-4 py-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         {onMenuOpen ? (
           <button
@@ -59,6 +59,7 @@ export function AppHeader({ title, onMenuOpen }: { title: string; onMenuOpen?: (
           userId={state.auth.userId}
           onMarkAllRead={notif.markAllRead}
           onMarkRead={notif.markOneRead}
+          markingRead={notif.markingRead}
           onLoadPage={(p) => void notif.loadNotifications(p)}
           onClose={() => notif.setOpen(false)}
           panelRef={notifPanelRef}

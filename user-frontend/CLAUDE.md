@@ -21,7 +21,7 @@ cd backend && npm run start:dev
 cd user-frontend && npm run dev
 ```
 
-Login: `jane.employee@requestflow.local` / `requestflow`  
+Login: `jane@requestflow.local` / `requestflow`  
 `NEXT_PUBLIC_SHOW_DEMO_HINTS=true` for demo hints on login.
 
 ## Docs

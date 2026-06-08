@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import type { PaginatedResponse } from "@/lib/pagination";
-import { cachedApi } from "@/lib/query-cache";
+import { ADMIN_STATS_CACHE_TTL_MS, cachedApi } from "@/lib/query-cache";
 
 export type DashboardSummaryItem = { label: string; value: string };
 export type ReportCard = { label: string; value: string };
@@ -38,7 +38,7 @@ export async function fetchAdminDashboard(activityLimit?: number): Promise<Admin
       params: activityLimit ? { activityLimit } : undefined,
     });
     return data;
-  });
+  }, ADMIN_STATS_CACHE_TTL_MS);
 }
 
 export async function fetchAdminReports(departmentName?: string): Promise<{ cards: ReportCard[] }> {
@@ -48,7 +48,7 @@ export async function fetchAdminReports(departmentName?: string): Promise<{ card
       params: departmentName ? { departmentName } : undefined,
     });
     return data;
-  });
+  }, ADMIN_STATS_CACHE_TTL_MS);
 }
 
 export async function fetchAdminActivity(limit = 10): Promise<ActivityItem[]> {

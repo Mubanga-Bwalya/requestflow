@@ -19,7 +19,12 @@ async function main() {
   let updated = 0;
   for (const u of users) {
     const stored = u.passwordHash?.trim() ?? '';
-    if (stored.startsWith('$2')) continue;
+    if (
+      stored.startsWith('$2') &&
+      (await bcrypt.compare(DEMO_PASSWORD, stored))
+    ) {
+      continue;
+    }
     await prisma.user.update({
       where: { id: u.id },
       data: { passwordHash: hash },

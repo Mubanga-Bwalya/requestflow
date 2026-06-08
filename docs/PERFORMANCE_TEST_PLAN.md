@@ -9,13 +9,23 @@ Use this checklist after performance changes. Run against a **local/dev database
 - Backend `:4000`, user portal `:3000`, admin `:3001`
 - Demo password: `requestflow`
 
-## Optional load data
+## Optional load data (dev database only)
+
+**Safety:** `seed-load-test.ts` refuses `NODE_ENV=production`, does **not** delete data, and labels rows `RF-{year}-LT{n}`. Use only on a local/dev database — never on pilot or production data.
+
+| Volume | Command | Notes |
+|--------|---------|-------|
+| 100 | `--requests=100` | Quick smoke (~seconds) |
+| 1,000 | `--requests=1000` | Default pilot load test |
+| 10,000 | `--requests=10000` | Sequential inserts; expect several minutes |
 
 ```bash
 cd backend
-# Dev-only — does not run automatically; review script before use
+# Confirm NODE_ENV is not production; confirm DATABASE_URL points at dev DB
 npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/seed-load-test.ts --requests=1000
 ```
+
+Seed creates bare requests only (no assignments, milestones, or notifications). Pair with manual workflow tests for inbox/tasks concurrency.
 
 ## Manual tests
 
@@ -36,6 +46,11 @@ npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/seed-load-test.ts
 | 13 | Redis off | `REDIS_ENABLED=false` | App works normally |
 | 14 | Redis on | `REDIS_ENABLED=true`, Redis running | Cache hits in dev logs; login/dashboard OK |
 | 15 | Redis down | Enable Redis then stop container | App falls back to PostgreSQL; no crash |
+| 16 | Admin dashboard | Admin login → `/dashboard` | Stats load; activity feed live; after mutation counts update within ~60s (Redis) or immediately (Redis off) |
+| 17 | Admin reports | `/reports` | Department cards load; switch department; cache invalidates after request/assignment changes |
+| 18 | Milestone concurrency | Two tabs update same milestone | Progress consistent; one tab may get **409** on assignment status if racing |
+
+Tests 10–11 and 18 are also covered by `backend/test/concurrency.e2e-spec.ts` in CI.
 
 ## Automated checks
 
@@ -52,3 +67,16 @@ cd admin-frontend && npm run lint && npm run typecheck
 - List pages: paginated, no full-table load
 - Dashboard workspace: < 1s p95 on dev hardware with 1k requests
 - Auth: JWT validate cached 45s when Redis enabled (DB still authoritative on miss)
+- Admin dashboard/reports: Redis aggregate cache 60s (optional); activity feed not cached
+- Automated concurrency tests: `backend/test/concurrency.e2e-spec.ts`
+
+## Production slow-request logging
+
+Set in `backend/.env` for pilot deployments:
+
+```env
+SLOW_REQUEST_LOGGING_ENABLED=true
+SLOW_REQUEST_MS=500
+```
+
+Logs method, path, status, duration, and `X-Request-Id` only — no body or tokens.

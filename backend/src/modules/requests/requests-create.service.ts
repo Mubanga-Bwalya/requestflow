@@ -1,5 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ActivityAction, NotificationType, Prisma } from '@prisma/client';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
+import { CacheKeys } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
 import type { RequestUser } from '../../common/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolveDepartmentManagerRecipientIds } from '../notifications/department-manager-recipients';
@@ -23,6 +26,7 @@ export class RequestsCreateService {
     private readonly notifications: NotificationsService,
     private readonly query: RequestsQueryService,
     private readonly requestNumbers: RequestNumberService,
+    private readonly cache: CacheService,
   ) {}
 
   async create(dto: CreateRequestDto, actor: RequestUser) {
@@ -140,6 +144,14 @@ export class RequestsCreateService {
             })),
           );
         }
+
+        await this.cache.del(CacheKeys.workspaceSummary(actor.id));
+        await Promise.all(
+          managerRecipients.map((uid) =>
+            this.cache.del(CacheKeys.workspaceSummary(uid)),
+          ),
+        );
+        await invalidateAdminStatsCache(this.cache);
 
         return this.query.findOne(request.id, actor);
       } catch (err) {

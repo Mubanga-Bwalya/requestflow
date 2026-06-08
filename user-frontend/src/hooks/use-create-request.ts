@@ -149,6 +149,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
   }
 
   async function submitRequest() {
+    if (submitting) return;
     if (!userId || !department || !requestType) return;
     const trimmed = trimFieldValues(values);
     const errors = validateTemplateFields(requestType.fields, trimmed, allowUploads);
@@ -198,6 +199,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
       return;
     }
     if (step === 3) {
+      if (submitting) return;
       await submitRequest();
     }
   }

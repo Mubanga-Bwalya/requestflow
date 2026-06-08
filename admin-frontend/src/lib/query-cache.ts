@@ -3,7 +3,10 @@ type CacheEntry<T> = { data: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 
-const DEFAULT_TTL_MS = 30_000;
+/** Default client cache — admin aggregates are also cached in Redis (~60s). */
+const DEFAULT_TTL_MS = 15_000;
+
+export const ADMIN_STATS_CACHE_TTL_MS = 8_000;
 
 export function peekApiCache<T>(key: string): T | undefined {
   const hit = cache.get(key) as CacheEntry<T> | undefined;

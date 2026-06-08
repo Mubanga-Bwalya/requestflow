@@ -34,6 +34,7 @@ This starts PostgreSQL 16 with database `requestflow` already created. You can s
 | `006_performance_indexes.sql` | List-query indexes (safe to re-run). |
 | `007_request_number_sequences.sql` | Per-year atomic counters for request numbers. |
 | `008_system_events.sql` | Admin-visible error/operational log table. |
+| `010_performance_indexes.sql` | Extra indexes + `pg_trgm` for search (safe to re-run). Run after `006`. |
 | `003_drop_all.sql` | Local reset: drops all tables, triggers, functions, and enums. |
 
 ## How to run manually
@@ -65,6 +66,7 @@ psql -U postgres -d requestflow -f backend/database/004_system_settings.sql
 psql -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
 psql -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
 psql -U postgres -d requestflow -f backend/database/008_system_events.sql
+psql -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
 ```
 
 (`005` only needed if users were seeded before bcrypt passwords were added.)
@@ -74,7 +76,7 @@ psql -U postgres -d requestflow -f backend/database/008_system_events.sql
 1. Connect to server as `postgres`.
 2. Run `000_create_database.sql` in Query Tool on database **`postgres`**.
 3. Connect to database **`requestflow`**.
-4. Run `001`, `002`, `004`, `006`, `007`, `008` (and `005` only if upgrading an old DB without bcrypt passwords).
+4. Run `001`, `002`, `004`, `006`, `007`, `008`, `010` (and `005` only if upgrading an old DB without bcrypt passwords).
 
 ### Local full reset
 
@@ -85,6 +87,8 @@ psql -U postgres -d requestflow -f backend/database/002_seed_core_data.sql
 psql -U postgres -d requestflow -f backend/database/004_system_settings.sql
 psql -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
 psql -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
+psql -U postgres -d requestflow -f backend/database/008_system_events.sql
+psql -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
 ```
 
 ## Tables created
@@ -157,7 +161,9 @@ cd backend
 npm run test:e2e
 ```
 
-CI applies `001`, `002`, `004`, `006`, and `007` automatically before e2e runs.
+CI applies `001`, `002`, `004`, `006`, `007`, `008`, and `010` automatically before e2e runs.
+
+`010_performance_indexes.sql` uses `CREATE EXTENSION IF NOT EXISTS pg_trgm` and GIN indexes — safe to re-run. On managed Postgres, ensure `pg_trgm` is enabled before applying.
 
 ### Microsoft SQL Server portability
 

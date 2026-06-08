@@ -3,6 +3,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { authHeader, loginJane } from './e2e/auth-helpers';
+import { EMAILS } from './e2e/seed-constants';
 import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 
 describe('API (e2e)', () => {
@@ -46,7 +47,7 @@ describe('API (e2e)', () => {
       .set(authHeader(token))
       .expect(200)
       .expect((res) => {
-        expect(res.body.email).toBe('jane.employee@requestflow.local');
+        expect(res.body.email).toBe(EMAILS.jane);
       });
   });
 });

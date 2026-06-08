@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   addMilestone,
   fetchAssignmentDetail,
@@ -29,22 +29,30 @@ export function useAssignmentDetail(assignmentId: string, userId: string | undef
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setAssignment(await fetchAssignmentDetail(assignmentId));
-    } catch {
-      setError("Could not load this assignment.");
-      setAssignment(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [assignmentId]);
-
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchAssignmentDetail(assignmentId);
+        if (cancelled) return;
+        setAssignment(data);
+      } catch {
+        if (cancelled) return;
+        setError("Could not load this assignment.");
+        setAssignment(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId]);
 
   function resetAddForm() {
     setMTitle("");
@@ -82,17 +90,20 @@ export function useAssignmentDetail(assignmentId: string, userId: string | undef
   const canAddMilestone = Boolean(userId && assignment) && Object.keys(addFieldErrors).length === 0;
 
   async function markReadyForReview() {
-    if (!userId || !assignment) return;
+    if (saving || !userId || !assignment) return;
     setSaving(true);
+    setFormError(null);
     try {
       setAssignment(await updateAssignmentStatus(assignment.id, "READY_FOR_REVIEW"));
+    } catch (e) {
+      setFormError(apiErrorMessage(e, "Could not mark this assignment ready for review."));
     } finally {
       setSaving(false);
     }
   }
 
   async function submitAddMilestone() {
-    if (!userId || !assignment) return;
+    if (saving || !userId || !assignment) return;
     setFormError(null);
     if (Object.keys(addFieldErrors).length) return;
 
@@ -116,6 +127,7 @@ export function useAssignmentDetail(assignmentId: string, userId: string | undef
   }
 
   async function submitUpdateMilestone() {
+    if (saving) return;
     if (!userId || !assignment || !selectedMilestoneId) {
       setUpdateOpen(false);
       return;

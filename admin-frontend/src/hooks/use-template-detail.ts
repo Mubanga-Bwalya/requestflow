@@ -81,8 +81,35 @@ export function useTemplateDetail(templateId: string) {
   }, [templateId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    const cacheKey = `template:${templateId}`;
+    const cached = peekApiCache<ApiTemplateDetail>(cacheKey);
+
+    if (cached) {
+      setTemplate(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    void (async () => {
+      try {
+        const data = await fetchTemplateDetail(templateId);
+        if (!cancelled) setTemplate(data);
+      } catch {
+        if (cancelled) return;
+        setError("Could not load template.");
+        if (!cached) setTemplate(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [templateId]);
 
   const patchForm = (patch: Partial<TemplateFieldFormState>) => {
     setForm((prev) => ({ ...prev, ...patch }));

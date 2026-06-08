@@ -1,7 +1,10 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AdminRoleGuard } from '../../common/guards/admin-role.guard';
 import { AdminService } from './admin.service';
 
+/** Higher read cap for admin aggregate pages (still rate-limited). */
+@Throttle({ default: { limit: 600, ttl: 60_000 } })
 @Controller('admin')
 @UseGuards(AdminRoleGuard)
 export class AdminController {

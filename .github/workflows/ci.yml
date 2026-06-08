@@ -45,6 +45,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
           PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
           PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/008_system_events.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
       - run: npm ci
         working-directory: backend
       - run: npm run prisma:validate

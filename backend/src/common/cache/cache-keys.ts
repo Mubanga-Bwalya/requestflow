@@ -7,6 +7,10 @@ export const CacheKeys = {
     `templates:department:${departmentId}`,
   rolesAll: 'roles:all',
   settingsSystem: 'settings:system',
+  adminDashboardSummary: 'admin:dashboard:summary',
+  adminReportsPrefix: 'admin:reports:',
+  adminReports: (departmentName: string) =>
+    `admin:reports:${departmentName}`,
 } as const;
 
 export const CacheTtl = {
@@ -14,4 +18,5 @@ export const CacheTtl = {
   workspaceSummarySeconds: 20,
   notificationUnreadSeconds: 20,
   lookupSeconds: 300,
+  adminSummarySeconds: 60,
 } as const;

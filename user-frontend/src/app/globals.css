@@ -64,7 +64,7 @@ html.rf-reduce-motion *::after {
 
   /* Consistent hover feedback for clickable elements */
   .rf-clickable {
-    @apply transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-200 ease-out motion-reduce:transition-none;
+    @apply transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-75 ease-out motion-reduce:transition-none;
   }
 
   .rf-clickable:not(:disabled):active {

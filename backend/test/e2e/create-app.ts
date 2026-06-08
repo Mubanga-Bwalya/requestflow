@@ -6,6 +6,7 @@ import { requestIdMiddleware } from '../../src/common/middleware/request-id.midd
 import { validationExceptionFactory } from '../../src/common/validation-error-format';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { EMAILS } from './seed-constants';
 
 export async function createE2eApp(): Promise<{
   app: INestApplication<App>;
@@ -41,7 +42,12 @@ export async function isDatabaseReady(prisma: PrismaService): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT 1`;
     const users = await prisma.user.count();
-    return users >= 5;
+    if (users < 5) return false;
+    const jane = await prisma.user.findFirst({
+      where: { email: { equals: EMAILS.jane, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    return !!jane;
   } catch {
     return false;
   }

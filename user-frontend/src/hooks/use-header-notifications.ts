@@ -25,6 +25,7 @@ export function useHeaderNotifications(userId: string | undefined) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [markingRead, setMarkingRead] = useState(false);
 
   const refreshUnread = useCallback(async () => {
     if (!userId) {
@@ -101,15 +102,25 @@ export function useHeaderNotifications(userId: string | undefined) {
   }, [refreshAll, refreshUnread, userId]);
 
   async function markAllRead() {
-    if (!userId) return;
-    await markAllNotificationsRead();
-    await refreshAll();
+    if (markingRead || !userId) return;
+    setMarkingRead(true);
+    try {
+      await markAllNotificationsRead();
+      await refreshAll();
+    } finally {
+      setMarkingRead(false);
+    }
   }
 
   async function markOneRead(notificationId: string) {
-    if (!userId) return;
-    await markNotificationRead(notificationId);
-    await refreshAll();
+    if (markingRead || !userId) return;
+    setMarkingRead(true);
+    try {
+      await markNotificationRead(notificationId);
+      await refreshAll();
+    } finally {
+      setMarkingRead(false);
+    }
   }
 
   return {
@@ -124,5 +135,6 @@ export function useHeaderNotifications(userId: string | undefined) {
     },
     markAllRead,
     markOneRead,
+    markingRead,
   };
 }

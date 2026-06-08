@@ -3,7 +3,11 @@ type CacheEntry<T> = { data: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 
-const DEFAULT_TTL_MS = 30_000;
+/** Default client cache — keep short; Redis may cache the same data server-side. */
+const DEFAULT_TTL_MS = 15_000;
+
+/** Workspace/dashboard: short TTL to avoid stacking with Redis (20s). */
+export const WORKSPACE_CACHE_TTL_MS = 8_000;
 
 export function peekApiCache<T>(key: string): T | undefined {
   const hit = cache.get(key) as CacheEntry<T> | undefined;

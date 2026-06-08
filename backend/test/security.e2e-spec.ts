@@ -15,11 +15,13 @@ import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 import { hrPolicyRequestPayload } from './e2e/request-payload';
 import { RequestNumberService } from '../src/modules/requests/request-number.service';
 import { EMAILS, SEED } from './e2e/seed-constants';
+import { resolveSeedUsers, type ResolvedSeedUsers } from './e2e/resolve-users';
 
 describe('Security regression (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let dbReady = false;
+  let users: ResolvedSeedUsers;
 
   beforeAll(async () => {
     const ctx = await createE2eApp();
@@ -35,6 +37,7 @@ describe('Security regression (e2e)', () => {
       );
       try {
         await loginJane(app);
+        users = await resolveSeedUsers(prisma);
       } catch {
         dbReady = false;
         console.warn(
@@ -156,8 +159,7 @@ describe('Security regression (e2e)', () => {
       .set(authHeader(henryToken))
       .send({
         requestId: created.body.id,
-        memberUserIds: [SEED.users.helenHr],
-        title: 'E2E assignment',
+        memberUserIds: [users.helenHr],
       })
       .expect(201);
 
@@ -194,8 +196,7 @@ describe('Security regression (e2e)', () => {
       .set(authHeader(henryToken))
       .send({
         requestId: created.body.id,
-        memberUserIds: [SEED.users.helenHr],
-        title: 'Milestone authz assignment',
+        memberUserIds: [users.helenHr],
       })
       .expect(201);
 
@@ -204,8 +205,7 @@ describe('Security regression (e2e)', () => {
       .set(authHeader(helenToken))
       .send({
         title: 'Draft policy review',
-        ownerUserId: SEED.users.helenHr,
-        progress: 10,
+        ownerUserId: users.helenHr,
       })
       .expect(201);
 
@@ -242,7 +242,7 @@ describe('Security regression (e2e)', () => {
       .set(authHeader(henryToken))
       .send({
         requestId: created.body.id,
-        memberUserIds: [SEED.users.helenHr],
+        memberUserIds: [users.helenHr],
       })
       .expect(201);
 
@@ -259,7 +259,7 @@ describe('Security regression (e2e)', () => {
     const adminToken = await loginAdmin(app);
 
     await prisma.user.update({
-      where: { id: SEED.users.admin },
+      where: { id: users.admin },
       data: { roleId: SEED.role.employee },
     });
 
@@ -270,7 +270,7 @@ describe('Security regression (e2e)', () => {
         .expect(403);
     } finally {
       await prisma.user.update({
-        where: { id: SEED.users.admin },
+        where: { id: users.admin },
         data: { roleId: SEED.role.admin },
       });
     }
@@ -321,7 +321,7 @@ describe('Security regression (e2e)', () => {
     const adminToken = await loginAdmin(app);
 
     await prisma.user.update({
-      where: { id: SEED.users.admin },
+      where: { id: users.admin },
       data: { roleId: SEED.role.employee },
     });
 
@@ -339,7 +339,7 @@ describe('Security regression (e2e)', () => {
         .expect(403);
     } finally {
       await prisma.user.update({
-        where: { id: SEED.users.admin },
+        where: { id: users.admin },
         data: { roleId: SEED.role.admin },
       });
     }

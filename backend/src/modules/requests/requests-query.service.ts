@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   mapRequestListItem,
   REQUEST_LIST_INCLUDE,
+  REQUEST_LIST_INCLUDE_LIGHT,
   requestActionNeeded,
 } from './request.mapper';
 
@@ -59,6 +60,9 @@ export class RequestsQueryService {
     }
 
     const pagination = resolveListPagination(query.page, query.limit);
+    const include = query.targetDepartmentName
+      ? REQUEST_LIST_INCLUDE
+      : REQUEST_LIST_INCLUDE_LIGHT;
     const [total, rows] = await Promise.all([
       this.prisma.request.count({ where }),
       this.prisma.request.findMany({
@@ -66,7 +70,7 @@ export class RequestsQueryService {
         orderBy: { createdAt: 'desc' },
         skip: pagination.skip,
         take: pagination.limit,
-        include: REQUEST_LIST_INCLUDE,
+        include,
       }),
     ]);
     return paginatedResult(

@@ -10,6 +10,7 @@ import type { RequestUser } from '../../common/auth.types';
 import { isManagerRole } from '../../common/auth-helpers';
 import { ActivityAction, NotificationType, Prisma } from '@prisma/client';
 import { assertAssignmentStatusTransition } from '../../common/assignment-status-transitions';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
 import { CacheKeys } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -20,6 +21,7 @@ import {
 } from '../notifications/workflow-notifications';
 import type { CreateAssignmentDto } from './dto/create-assignment.dto';
 import type { UpdateAssignmentStatusDto } from './dto/update-assignment.dto';
+import { invalidateWorkspaceForAssignment } from './assignment-workspace-cache';
 import { AssignmentsQueryService } from './assignments-query.service';
 
 @Injectable()
@@ -45,7 +47,7 @@ export class AssignmentsMutationService {
     if (!request)
       throw new NotFoundException(`Request not found: ${dto.requestId}`);
     if (request.assignment) {
-      throw new BadRequestException('This request already has an assignment.');
+      throw new ConflictException('This request already has an assignment.');
     }
     if (!['SUBMITTED', 'ACCEPTED'].includes(request.status)) {
       throw new BadRequestException(
@@ -173,6 +175,7 @@ export class AssignmentsMutationService {
         this.cache.del(CacheKeys.workspaceSummary(id)),
       ),
     );
+    await invalidateAdminStatsCache(this.cache);
 
     return this.query.findOne(assignment.id, actor);
   }
@@ -187,7 +190,10 @@ export class AssignmentsMutationService {
 
     const existing = await this.prisma.assignment.findUnique({
       where: { id },
-      include: { request: true },
+      include: {
+        request: true,
+        members: { select: { userId: true } },
+      },
     });
     if (!existing) throw new NotFoundException('Assignment not found');
 
@@ -198,7 +204,16 @@ export class AssignmentsMutationService {
     if (dto.status === 'COMPLETED') data.completedAt = new Date();
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.assignment.update({ where: { id }, data });
+      const assignmentUpdated = await tx.assignment.updateMany({
+        where: { id, status: existing.status },
+        data,
+      });
+      if (assignmentUpdated.count !== 1) {
+        throw new ConflictException(
+          'This assignment was updated by someone else. Please refresh and try again.',
+        );
+      }
+
       const requestStatus =
         dto.status === 'READY_FOR_REVIEW'
           ? 'READY_FOR_REVIEW'
@@ -208,8 +223,8 @@ export class AssignmentsMutationService {
               ? 'IN_PROGRESS'
               : undefined;
       if (requestStatus) {
-        await tx.request.update({
-          where: { id: existing.requestId },
+        const requestUpdated = await tx.request.updateMany({
+          where: { id: existing.requestId, status: existing.request.status },
           data: {
             status: requestStatus,
             currentStage:
@@ -223,6 +238,11 @@ export class AssignmentsMutationService {
             ...(dto.status === 'COMPLETED' ? { completedAt: new Date() } : {}),
           },
         });
+        if (requestUpdated.count !== 1) {
+          throw new ConflictException(
+            'This assignment was updated by someone else. Please refresh and try again.',
+          );
+        }
       }
       await tx.activityLog.create({
         data: {
@@ -251,6 +271,14 @@ export class AssignmentsMutationService {
         id,
       );
     }
+
+    await invalidateWorkspaceForAssignment(this.cache, this.prisma, {
+      requesterId: existing.request.createdByUserId,
+      memberUserIds: existing.members.map((m) => m.userId),
+      departmentId: existing.departmentId,
+      actorId: user.id,
+    });
+    await invalidateAdminStatsCache(this.cache);
 
     return this.query.findOne(id, user);
   }

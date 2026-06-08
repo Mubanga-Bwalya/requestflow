@@ -14,7 +14,7 @@ import type { RequestUser } from '../../common/auth.types';
 import { assertDepartmentTeamAccess } from '../../common/auth-helpers';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminRoleGuard } from '../../common/guards/admin-role.guard';
-import { wantsPagination } from '../../common/pagination';
+import { parsePagination, wantsPagination } from '../../common/pagination';
 import { ADMIN_ROLE_NAMES } from '../auth/auth.service';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -33,7 +33,12 @@ export class UsersController {
   ) {
     if (departmentName?.trim()) {
       assertDepartmentTeamAccess(user, departmentName);
-      return this.usersService.findByDepartment(departmentName);
+      const pagination = parsePagination(page ?? '1', limit ?? '100');
+      return this.usersService.findByDepartment(
+        departmentName,
+        pagination.page,
+        pagination.limit,
+      );
     }
     if (!user.roleName || !ADMIN_ROLE_NAMES.has(user.roleName)) {
       throw new ForbiddenException('Admin access required');

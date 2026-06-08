@@ -17,6 +17,7 @@ type Props = {
   userId: string | undefined;
   onMarkAllRead: () => Promise<void>;
   onMarkRead: (id: string) => Promise<void>;
+  markingRead?: boolean;
   onLoadPage: (page: number) => void;
   onClose: () => void;
   panelRef: React.RefObject<HTMLDivElement>;
@@ -32,6 +33,7 @@ export function NotificationPanel({
   userId,
   onMarkAllRead,
   onMarkRead,
+  markingRead = false,
   onLoadPage,
   onClose,
   panelRef,
@@ -80,7 +82,8 @@ export function NotificationPanel({
             {unreadCount > 0 && userId ? (
               <button
                 type="button"
-                className="rf-text-link text-xs"
+                className="rf-text-link text-xs disabled:opacity-50"
+                disabled={markingRead}
                 onClick={() => void onMarkAllRead()}
               >
                 Mark all read
@@ -100,7 +103,8 @@ export function NotificationPanel({
                 >
                   <button
                     type="button"
-                    className="rf-clickable-row rf-focus-ring w-full px-4 py-3 text-left"
+                    className="rf-clickable-row rf-focus-ring w-full px-4 py-3 text-left disabled:opacity-50"
+                    disabled={markingRead}
                     onClick={async () => {
                       if (userId && !n.read) await onMarkRead(n.id);
                       onClose();

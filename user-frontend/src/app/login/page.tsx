@@ -6,7 +6,7 @@ import { LoginShell } from "@/components/login/login-shell";
 import { useLoginPage } from "@/hooks/use-login-page";
 
 const SHOW_DEMO_HINT = process.env.NEXT_PUBLIC_SHOW_DEMO_HINTS === "true";
-const DEMO_HINT = "Demo account: jane.employee@requestflow.local — password: requestflow";
+const DEMO_HINT = "Demo account: jane@requestflow.local — password: requestflow";
 
 export default function Page() {
   const login = useLoginPage();

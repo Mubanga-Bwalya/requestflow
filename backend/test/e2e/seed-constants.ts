@@ -26,9 +26,10 @@ export const PASSWORD = 'requestflow';
 
 export const EMAILS = {
   admin: 'admin@requestflow.local',
-  jane: 'jane.employee@requestflow.local',
-  henry: 'henry.hr@requestflow.local',
-  mary: 'mary.marketing@requestflow.local',
-  helen: 'helen.hr@requestflow.local',
-  mark: 'mark.marketing@requestflow.local',
+  jane: 'jane@requestflow.local',
+  henry: 'henry@requestflow.local',
+  mary: 'mary@requestflow.local',
+  helen: 'helen@requestflow.local',
+  mark: 'mark@requestflow.local',
+  musa: 'musa@requestflow.local',
 } as const;

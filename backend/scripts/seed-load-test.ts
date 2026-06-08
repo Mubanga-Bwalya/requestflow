@@ -23,7 +23,7 @@ async function main() {
 
   const count = arg('requests', 100);
   const user = await prisma.user.findFirst({
-    where: { email: 'jane.employee@requestflow.local', isActive: true },
+    where: { email: 'jane@requestflow.local', isActive: true },
     include: { department: true },
   });
   const hr = await prisma.department.findFirst({ where: { name: 'HR' } });

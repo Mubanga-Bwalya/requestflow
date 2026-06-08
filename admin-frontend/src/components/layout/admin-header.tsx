@@ -23,7 +23,7 @@ export function AdminHeader({ title, onMenuOpen }: { title: string; onMenuOpen?:
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-brand-dark/10 bg-white/80 px-4 py-4 backdrop-blur transition-shadow duration-200 sm:px-6">
+    <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-brand-dark/10 bg-white px-4 py-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         {onMenuOpen ? (
           <button

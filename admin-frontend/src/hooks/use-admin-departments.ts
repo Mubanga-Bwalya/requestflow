@@ -89,8 +89,39 @@ export function useAdminDepartments() {
   }, [page]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+    const cacheKey = `departments:page:${page}:${LIST_PAGE_SIZE}:false`;
+    const cached = peekApiCache<typeof result>(cacheKey);
+    if (cached) {
+      setResult(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    void (async () => {
+      try {
+        const [paged, all] = await Promise.all([
+          fetchDepartmentsPage({ page, limit: LIST_PAGE_SIZE, activeOnly: false }),
+          fetchDepartments(false),
+        ]);
+        if (!cancelled) {
+          setResult(paged);
+          setAllDepartments(all);
+        }
+      } catch {
+        if (!cancelled && !cached) {
+          setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
 
   useEffect(() => {
     if (dialogMode !== "edit" || !editing) {

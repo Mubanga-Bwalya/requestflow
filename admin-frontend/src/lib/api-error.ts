@@ -47,6 +47,13 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
   const fromMessage = formatMessage(payload?.message);
   const detail = fromErrors || fromMessage;
 
+  if (status === 409) {
+    return (
+      detail ??
+      "This item was updated by someone else. Please refresh and try again."
+    );
+  }
+
   if (detail) {
     if (status === 400 || status === 422) {
       return detail;

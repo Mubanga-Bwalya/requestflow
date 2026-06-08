@@ -12,6 +12,7 @@ export function requestActionNeeded(
   return 'None';
 }
 
+/** Manager inbox lists — includes assignee names and source department. */
 export const REQUEST_LIST_INCLUDE = {
   targetDepartment: { select: { name: true } },
   sourceDepartment: { select: { name: true } },
@@ -29,6 +30,18 @@ export const REQUEST_LIST_INCLUDE = {
   },
 } as const;
 
+/** My-requests / dashboard previews — skips member join. */
+export const REQUEST_LIST_INCLUDE_LIGHT = {
+  targetDepartment: { select: { name: true } },
+  template: { select: { id: true, name: true } },
+  createdByUser: { select: { fullName: true } },
+  missingInfoRequests: {
+    where: { status: 'OPEN' as const },
+    select: { status: true },
+  },
+  assignment: { select: { progressPercentage: true } },
+} as const;
+
 export function mapRequestListItem(row: {
   id: string;
   requestNumber: string;
@@ -39,13 +52,13 @@ export function mapRequestListItem(row: {
   priority: string;
   updatedAt: Date;
   targetDepartment: { name: string };
-  sourceDepartment: { name: string };
+  sourceDepartment?: { name: string };
   template: { name: string };
   createdByUser: { fullName: string };
   missingInfoRequests: { status: string }[];
   assignment: {
     progressPercentage: number;
-    members: { user: { fullName: string } }[];
+    members?: { user: { fullName: string } }[];
   } | null;
 }) {
   const hasOpenMissing = row.missingInfoRequests.some(
@@ -64,10 +77,10 @@ export function mapRequestListItem(row: {
     deadline: row.deadline ? row.deadline.toISOString().slice(0, 10) : '',
     actionNeeded: requestActionNeeded(row.status, hasOpenMissing),
     requestedBy: row.createdByUser.fullName,
-    sourceDepartment: row.sourceDepartment.name,
+    sourceDepartment: row.sourceDepartment?.name ?? '',
     priority: row.priority,
     assignedMembers:
-      row.assignment?.members.map((m) => m.user.fullName).join(', ') ?? '',
+      row.assignment?.members?.map((m) => m.user.fullName).join(', ') ?? '',
     updatedAt: row.updatedAt.toISOString(),
   };
 }

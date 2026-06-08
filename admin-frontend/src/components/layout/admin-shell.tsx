@@ -17,7 +17,7 @@ function AdminShellInner({ children }: { children: ReactNode }) {
       <AdminMobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AdminHeader title={title} onMenuOpen={() => setMobileNavOpen(true)} />
-        <main className="rf-page-enter relative z-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="relative z-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
@@ -44,7 +44,7 @@ export function AdminShell({ children, title }: { children: ReactNode; title: st
         <AdminMobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminHeader title={title} onMenuOpen={() => setMobileNavOpen(true)} />
-          <main className="rf-page-enter relative z-0 flex-1 p-4 sm:p-6">{children}</main>
+          <main className="relative z-0 flex-1 p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </RequireAdminAuth>

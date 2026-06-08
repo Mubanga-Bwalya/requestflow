@@ -20,6 +20,7 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const cacheKey = `admin:reports:${dept}`;
     const cached = peekApiCache<{ cards: ReportCard[] }>(cacheKey);
     if (cached) {
@@ -30,11 +31,18 @@ export default function Page() {
     }
     const param = dept === "ALL" ? undefined : dept;
     fetchAdminReports(param)
-      .then((r) => setCards(r.cards))
-      .catch(() => {
-        if (!cached) setCards([]);
+      .then((r) => {
+        if (!cancelled) setCards(r.cards);
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled && !cached) setCards([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [dept]);
 
   return (
@@ -54,7 +62,7 @@ export default function Page() {
       {loading ? (
         <p className="text-sm text-muted">Loading reports…</p>
       ) : (
-        <div className="rf-stagger grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           {cards.map((item) => (
             <Card key={item.label} className="relative overflow-hidden">
               <div className="absolute left-0 top-0 h-1 w-full bg-brand-primary" aria-hidden />

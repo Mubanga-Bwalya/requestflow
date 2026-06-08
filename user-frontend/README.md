@@ -12,13 +12,14 @@ npm run dev
 
 Open **http://localhost:3000**. Backend on **http://localhost:4000**.
 
-Example login: `jane.employee@requestflow.local` / password `requestflow`.
+Example login: `jane@requestflow.local` / password `requestflow`.
 
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Dev server on port 3000 |
+| `npm run dev` | Dev server on port 3000 (webpack — recommended on Windows / OneDrive) |
+| `npm run dev:turbo` | Turbopack dev (optional; faster on non-synced paths) |
 | `npm run build` | Production build |
 
 ## Agent handover

@@ -58,8 +58,39 @@ export function useAdminTemplates() {
   }, [activeTab, deptId, page]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+    const isActive = activeTab === "ACTIVE" ? true : activeTab === "INACTIVE" ? false : undefined;
+    const cacheKey = `templates:page:${page}:${LIST_PAGE_SIZE}:${activeTab}:${deptId}`;
+    const cached = peekApiCache<typeof result>(cacheKey);
+    if (cached) {
+      setResult(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    void (async () => {
+      try {
+        const data = await fetchTemplates({
+          page,
+          limit: LIST_PAGE_SIZE,
+          ...(isActive !== undefined ? { isActive } : { activeOnly: false }),
+          departmentId: deptId,
+        });
+        if (!cancelled) setResult(data);
+      } catch {
+        if (!cancelled && !cached) {
+          setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, deptId, page]);
 
   useEffect(() => {
     setPage(1);

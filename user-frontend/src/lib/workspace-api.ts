@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { cachedApi, invalidateApiCache } from "@/lib/query-cache";
+import { cachedApi, invalidateApiCache, WORKSPACE_CACHE_TTL_MS } from "@/lib/query-cache";
 import type { Assignment } from "@/types/task";
 import type { RequestItem } from "@/types/request";
 
@@ -25,7 +25,7 @@ export async function fetchUserWorkspace(params: {
       params: { includeInbox: params.includeInbox ? "true" : "false" },
     });
     return data;
-  }, 15_000);
+  }, WORKSPACE_CACHE_TTL_MS);
 }
 
 export function invalidateUserWorkspace() {

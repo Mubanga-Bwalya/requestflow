@@ -21,6 +21,7 @@ export function InboxMissingInfoDialog({ open, onOpenChange, selected, userId, o
   const [templateFieldOptions, setTemplateFieldOptions] = useState<{ key: string; label: string }[]>([]);
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [infoError, setInfoError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!open || !selected) {
@@ -99,13 +100,16 @@ export function InboxMissingInfoDialog({ open, onOpenChange, selected, userId, o
             </Button>
             <Button
               variant="warning"
+              loading={sending}
+              disabled={sending || fieldsLoading}
               onClick={async () => {
-                if (!userId || !selected) return;
+                if (sending || !userId || !selected) return;
                 if (!missingFieldKeys.length) {
                   setInfoError("Select at least one field.");
                   return;
                 }
                 setInfoError(null);
+                setSending(true);
                 const labelByKey = new Map(templateFieldOptions.map((f) => [f.key, f.label]));
                 try {
                   await requestMissingInformation(
@@ -119,6 +123,8 @@ export function InboxMissingInfoDialog({ open, onOpenChange, selected, userId, o
                   onOpenChange(false);
                 } catch (e) {
                   setInfoError(apiErrorMessage(e, "Could not send the information request."));
+                } finally {
+                  setSending(false);
                 }
               }}
             >

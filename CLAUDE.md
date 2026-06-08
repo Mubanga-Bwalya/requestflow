@@ -31,9 +31,9 @@ cd admin-frontend && npm run dev     # :3001
 | Email | Portal | DB role name |
 |-------|--------|--------------|
 | admin@requestflow.local | Admin :3001 | **Admin** (not "System Admin") |
-| jane.employee@requestflow.local | User | Employee |
-| henry.hr / mary.marketing | User | *Manager |
-| helen.hr / mark.marketing | User | Team member |
+| jane@requestflow.local | User | Employee |
+| henry@ / mary@ | User | *Manager |
+| helen@ / mark@ | User | Team member |
 
 ## What works end-to-end
 
@@ -47,8 +47,8 @@ cd admin-frontend && npm run dev     # :3001
 - **Auth:** JWT Bearer; roles from DB each request; `AuthProvider` in `auth-context.tsx` (both frontends)
 - **Admin login** checks role `Admin` or `System Admin`
 - **Admin hydration:** `authReady` before shell (avoids sidebar SSR mismatch)
-- **Admin dev:** default `npm run dev` uses webpack; `dev:turbo` optional
-- **OneDrive:** can corrupt `.next` — delete folder and avoid turbo on Windows synced paths
+- **Dev:** both frontends default to webpack (`npm run dev`); `dev:turbo` optional only on non-synced paths
+- **OneDrive:** can corrupt `.next` — see `docs/DEV_PERFORMANCE.md`; exclude `.next` or move repo off sync
 - **File length:** ≤ 250 lines for app source — `docs/CODE_STANDARDS.md`
 
 ## Production deploy

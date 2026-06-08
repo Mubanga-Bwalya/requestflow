@@ -20,6 +20,7 @@ import {
   assertCanRequestMissingInformation,
   assertRequestStatusAlignedWithAssignment,
 } from '../../common/request-workflow-guards';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
 import { CacheKeys } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -44,6 +45,11 @@ export class RequestsLifecycleService {
 
   private async invalidateWorkspace(userId: string) {
     await this.cache.del(CacheKeys.workspaceSummary(userId));
+  }
+
+  private async invalidateAfterLifecycle(...userIds: string[]) {
+    await Promise.all(userIds.map((id) => this.invalidateWorkspace(id)));
+    await invalidateAdminStatsCache(this.cache);
   }
 
   async updateStatus(
@@ -128,8 +134,7 @@ export class RequestsLifecycleService {
       user.id,
     );
 
-    await this.invalidateWorkspace(existing.createdByUserId);
-    await this.invalidateWorkspace(user.id);
+    await this.invalidateAfterLifecycle(existing.createdByUserId, user.id);
 
     return this.query.findOne(id, user);
   }
@@ -173,6 +178,15 @@ export class RequestsLifecycleService {
     );
 
     await this.prisma.$transaction(async (tx) => {
+      const openInTx = await tx.missingInformationRequest.findFirst({
+        where: { requestId: id, status: 'OPEN' },
+      });
+      if (!openInTx) {
+        throw new ConflictException(
+          'No open missing-information request for this record.',
+        );
+      }
+
       for (const ans of dto.fieldAnswers) {
         const field = fieldByKey.get(ans.fieldKey);
         if (!field) continue;
@@ -202,23 +216,33 @@ export class RequestsLifecycleService {
         });
       }
 
-      await tx.missingInformationRequest.update({
-        where: { id: openReq.id },
+      const mirUpdated = await tx.missingInformationRequest.updateMany({
+        where: { id: openInTx.id, status: 'OPEN' },
         data: { status: 'RESOLVED', resolvedAt: new Date() },
       });
+      if (mirUpdated.count !== 1) {
+        throw new ConflictException(
+          'This request was updated by someone else. Please refresh and try again.',
+        );
+      }
 
       await tx.missingInformationItem.updateMany({
-        where: { missingInformationRequestId: openReq.id },
+        where: { missingInformationRequestId: openInTx.id },
         data: { isResolved: true, resolvedAt: new Date() },
       });
 
-      await tx.request.update({
-        where: { id },
+      const requestUpdated = await tx.request.updateMany({
+        where: { id, status: 'NEEDS_INFORMATION' },
         data: {
           status: 'SUBMITTED',
           currentStage: 'Resubmitted after missing information',
         },
       });
+      if (requestUpdated.count !== 1) {
+        throw new ConflictException(
+          'This request was updated by someone else. Please refresh and try again.',
+        );
+      }
 
       await tx.activityLog.create({
         data: {
@@ -253,6 +277,8 @@ export class RequestsLifecycleService {
       }
     }
 
+    await this.invalidateAfterLifecycle(request.createdByUserId, user.id);
+
     return this.query.findOne(id, user);
   }
 
@@ -286,6 +312,15 @@ export class RequestsLifecycleService {
     );
 
     await this.prisma.$transaction(async (tx) => {
+      const existingOpen = await tx.missingInformationRequest.findFirst({
+        where: { requestId: id, status: 'OPEN' },
+      });
+      if (existingOpen) {
+        throw new ConflictException(
+          'A missing-information request is already open for this record.',
+        );
+      }
+
       const mir = await tx.missingInformationRequest.create({
         data: {
           requestId: id,
@@ -305,13 +340,18 @@ export class RequestsLifecycleService {
         });
       }
 
-      await tx.request.update({
-        where: { id },
+      const requestUpdated = await tx.request.updateMany({
+        where: { id, status: request.status },
         data: {
           status: 'NEEDS_INFORMATION',
           currentStage: 'Awaiting requester clarification',
         },
       });
+      if (requestUpdated.count !== 1) {
+        throw new ConflictException(
+          'This request was updated by someone else. Please refresh and try again.',
+        );
+      }
 
       await tx.activityLog.create({
         data: {
@@ -330,6 +370,8 @@ export class RequestsLifecycleService {
       message: `${request.requestNumber} needs your input before work can continue.`,
       relatedRequestId: id,
     });
+
+    await this.invalidateAfterLifecycle(request.createdByUserId, user.id);
 
     return this.query.findOne(id, user);
   }

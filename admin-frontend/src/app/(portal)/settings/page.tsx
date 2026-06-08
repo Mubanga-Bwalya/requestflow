@@ -69,7 +69,7 @@ export default function Page() {
         <div className="mb-4 rounded-md border border-brand-lime/50 bg-brand-lime/30 p-3 text-sm text-brand-dark">Settings saved.</div>
       ) : null}
       {error ? <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
-      <div className="rf-stagger grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardContent className="grid gap-4 md:grid-cols-2">
           {loading ? (

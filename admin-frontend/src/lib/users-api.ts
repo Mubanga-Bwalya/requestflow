@@ -35,11 +35,13 @@ export async function fetchUsers(params?: {
 
 export async function fetchDepartmentUsers(departmentName: string) {
   return cachedApi(`users:dept:${departmentName}`, async () => {
-    const { data } = await api.get<{ id: string; fullName: string; email: string; roleName: string | null }[]>("/users", {
-      params: { departmentName },
+    const { data } = await api.get<
+      PaginatedResponse<{ id: string; fullName: string; email: string; roleName: string | null }>
+    >("/users", {
+      params: { departmentName, page: 1, limit: 100 },
     });
-    return data;
-  });
+    return data.items;
+  }, 10_000);
 }
 
 export async function createUser(payload: {

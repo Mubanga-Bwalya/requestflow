@@ -22,32 +22,43 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
   const [approveSaving, setApproveSaving] = useState(false);
   const [reopenSaving, setReopenSaving] = useState(false);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchRequestDetail(requestId);
-      setReq(data);
-      setProvidedValues(
-        data.missingInformation.reduce(
-          (acc, m) => {
-            if (m.fieldKey) acc[m.fieldKey] = "";
-            return acc;
-          },
-          {} as Record<string, string>,
-        ),
-      );
-    } catch {
-      setError("Could not load this request.");
-      setReq(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [requestId]);
+  const applyDetail = useCallback((data: RequestDetail) => {
+    setReq(data);
+    setProvidedValues(
+      data.missingInformation.reduce(
+        (acc, m) => {
+          if (m.fieldKey) acc[m.fieldKey] = "";
+          return acc;
+        },
+        {} as Record<string, string>,
+      ),
+    );
+  }, []);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchRequestDetail(requestId);
+        if (cancelled) return;
+        applyDetail(data);
+      } catch {
+        if (cancelled) return;
+        setError("Could not load this request.");
+        setReq(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestId, applyDetail]);
 
   async function submitMissingInfo() {
     if (!userId || !req || provideSaving) return;

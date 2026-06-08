@@ -59,9 +59,10 @@ psql -U postgres -d requestflow -f backend/database/004_system_settings.sql
 psql -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
 psql -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
 psql -U postgres -d requestflow -f backend/database/008_system_events.sql
+psql -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
 ```
 
-Details: [`backend/database/README.md`](backend/database/README.md).
+Details: [`backend/database/README.md`](backend/database/README.md). `010` adds search indexes (`pg_trgm`) and list-query indexes — safe to re-run.
 
 ### 2. Backend
 
@@ -92,9 +93,9 @@ Do not use the demo password in production. See [`docs/PRODUCTION_DEPLOYMENT_CHE
 | Email | Use |
 |-------|-----|
 | `admin@requestflow.local` | Admin portal only — DB role name **`Admin`** |
-| `jane.employee@requestflow.local` | Create requests |
-| `henry.hr@requestflow.local` / `mary.marketing@requestflow.local` | Department inbox |
-| `helen.hr@requestflow.local` / `mark.marketing@requestflow.local` | Tasks / milestones |
+| `jane@requestflow.local` | Create requests |
+| `henry@requestflow.local` / `mary@requestflow.local` | Department inbox |
+| `helen@requestflow.local` / `mark@requestflow.local` | Tasks / milestones |
 
 ## Folder structure
 
@@ -129,7 +130,7 @@ RequestFlow/
 
 ## Dev notes (Windows / OneDrive)
 
-- Default `npm run dev` uses **webpack** on admin (Turbopack optional via `dev:turbo`) to reduce `.next` cache errors under OneDrive.
+- Both frontends default to **webpack** for `npm run dev` (Turbopack via `dev:turbo` only if needed). See [`docs/DEV_PERFORMANCE.md`](docs/DEV_PERFORMANCE.md) for OneDrive / slow dev fixes.
 - Exclude `node_modules` and `.next` from OneDrive sync, or move the repo outside a synced folder, for best performance.
 - If admin shows `ENOENT` under `.next`, delete `admin-frontend/.next` and restart dev.
 

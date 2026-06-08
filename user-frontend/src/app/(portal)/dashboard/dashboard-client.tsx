@@ -51,7 +51,7 @@ export function DashboardClient() {
       />
 
       <div className="space-y-5">
-        <div className={`rf-stagger grid gap-3 ${isManager ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
+        <div className={`grid gap-3 ${isManager ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
           {ws.loading ? (
             <DashboardStatSkeletons count={isManager ? 4 : 3} />
           ) : (
@@ -93,7 +93,7 @@ export function DashboardClient() {
           )}
         </div>
 
-        <div className="rf-stagger grid gap-5 lg:grid-cols-5">
+        <div className="grid gap-5 lg:grid-cols-5">
           <DashboardNextStepsPanel loading={ws.loading} steps={nextSteps} />
           <div className="flex flex-col gap-5 lg:col-span-2">
             <DashboardShortcuts isManager={isManager} />

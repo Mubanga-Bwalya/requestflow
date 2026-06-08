@@ -9,6 +9,8 @@ import {
   resolveListPagination,
   type PaginatedResult,
 } from '../../common/pagination';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
+import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateTemplateDto } from './dto/create-template.dto';
 import type { UpdateTemplateDto } from './dto/update-template.dto';
@@ -35,7 +37,10 @@ type TemplateSummary = {
 
 @Injectable()
 export class RequestTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private templateWhere(
     query: ListTemplatesQuery,
@@ -138,6 +143,7 @@ export class RequestTemplatesService {
       },
     });
 
+    await invalidateAdminStatsCache(this.cache);
     return this.findOne(created.id, false);
   }
 
@@ -159,6 +165,9 @@ export class RequestTemplatesService {
       },
     });
 
+    if (dto.isActive !== undefined) {
+      await invalidateAdminStatsCache(this.cache);
+    }
     return this.findOne(id, false);
   }
 }

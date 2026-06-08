@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, RequestStatus, SystemEventLevel } from '@prisma/client';
+import { CacheKeys, CacheTtl } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
 import { parsePagination } from '../../common/pagination';
 import { SystemEventsService } from '../../common/system-events/system-events.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -20,11 +22,17 @@ const ACTIVE_STATUSES: RequestStatus[] = [
   'REOPENED',
 ];
 
+type StatsPayload = {
+  summary: { label: string; value: string }[];
+  reports: { label: string; value: string }[];
+};
+
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly systemEvents: SystemEventsService,
+    private readonly cache: CacheService,
   ) {}
 
   private requestWhere(departmentName?: string): Prisma.RequestWhereInput {
@@ -37,7 +45,7 @@ export class AdminService {
     return where;
   }
 
-  private async buildStats(departmentName?: string) {
+  private async buildStats(departmentName?: string): Promise<StatsPayload> {
     const baseWhere = this.requestWhere(departmentName);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -152,18 +160,48 @@ export class AdminService {
     };
   }
 
-  async getDashboard(activityLimit?: number) {
+  private async getCachedDashboardStats(): Promise<StatsPayload> {
+    const cacheKey = CacheKeys.adminDashboardSummary;
+    const cached = await this.cache.getJson<StatsPayload>(cacheKey);
+    if (cached) return cached;
+
     const stats = await this.buildStats();
-    if (!activityLimit) return stats;
+    await this.cache.setJson(cacheKey, stats, CacheTtl.adminSummarySeconds);
+    return stats;
+  }
+
+  private async getCachedReportStats(
+    departmentName?: string,
+  ): Promise<StatsPayload['reports']> {
+    const deptKey =
+      departmentName && departmentName !== 'ALL' ? departmentName : 'ALL';
+    const cacheKey = CacheKeys.adminReports(deptKey);
+    const cached = await this.cache.getJson<{ cards: StatsPayload['reports'] }>(
+      cacheKey,
+    );
+    if (cached) return cached.cards;
+
+    const stats = await this.buildStats(
+      deptKey === 'ALL' ? undefined : deptKey,
+    );
+    await this.cache.setJson(
+      cacheKey,
+      { cards: stats.reports },
+      CacheTtl.adminSummarySeconds,
+    );
+    return stats.reports;
+  }
+
+  async getDashboard(activityLimit?: number) {
+    const stats = await this.getCachedDashboardStats();
+    if (!activityLimit) return { summary: stats.summary };
     const activity = await this.getActivity(activityLimit);
-    return { ...stats, activity };
+    return { summary: stats.summary, activity };
   }
 
   async getReports(departmentName?: string) {
-    const dept =
-      departmentName && departmentName !== 'ALL' ? departmentName : undefined;
-    const stats = await this.buildStats(dept);
-    return { cards: stats.reports };
+    const cards = await this.getCachedReportStats(departmentName);
+    return { cards };
   }
 
   async getSystemEvents(

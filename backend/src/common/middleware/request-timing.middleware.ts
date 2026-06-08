@@ -1,14 +1,22 @@
 import type { NextFunction, Request, Response } from 'express';
 
-const SLOW_MS = 500;
+const SLOW_MS = Math.max(
+  100,
+  parseInt(process.env.SLOW_REQUEST_MS ?? '500', 10) || 500,
+);
 
-/** Development-only slow request logging (no sensitive data). */
+function slowLoggingEnabled(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true;
+  return process.env.SLOW_REQUEST_LOGGING_ENABLED === 'true';
+}
+
+/** Slow request logging (no sensitive data). Dev always on; prod opt-in via env. */
 export function requestTimingMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!slowLoggingEnabled()) {
     next();
     return;
   }
@@ -17,8 +25,13 @@ export function requestTimingMiddleware(
   res.on('finish', () => {
     const ms = Date.now() - start;
     if (ms >= SLOW_MS) {
+      const requestId =
+        (req.headers['x-request-id'] as string | undefined) ??
+        (res.getHeader('x-request-id') as string | undefined);
       // eslint-disable-next-line no-console
-      console.warn(`[slow] ${req.method} ${req.path} ${res.statusCode} ${ms}ms`);
+      console.warn(
+        `[slow] ${req.method} ${req.path} ${res.statusCode} ${ms}ms requestId=${requestId ?? '-'}`,
+      );
     }
   });
   next();

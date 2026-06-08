@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { CacheKeys, CacheTtl } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 
@@ -6,7 +8,10 @@ const DEFAULT_ID = 'default';
 
 @Injectable()
 export class SystemSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private map(row: {
     id: string;
@@ -27,6 +32,11 @@ export class SystemSettingsService {
   }
 
   async get() {
+    const cached = await this.cache.getJson<ReturnType<SystemSettingsService['map']>>(
+      CacheKeys.settingsSystem,
+    );
+    if (cached) return cached;
+
     let row = await this.prisma.systemSettings.findUnique({
       where: { id: DEFAULT_ID },
     });
@@ -35,7 +45,9 @@ export class SystemSettingsService {
         data: { id: DEFAULT_ID },
       });
     }
-    return this.map(row);
+    const mapped = this.map(row);
+    await this.cache.setJson(CacheKeys.settingsSystem, mapped, CacheTtl.lookupSeconds);
+    return mapped;
   }
 
   async update(dto: UpdateSystemSettingsDto) {
@@ -60,6 +72,9 @@ export class SystemSettingsService {
           : {}),
       },
     });
-    return this.map(row);
+    const mapped = this.map(row);
+    await this.cache.del(CacheKeys.settingsSystem);
+    await this.cache.setJson(CacheKeys.settingsSystem, mapped, CacheTtl.lookupSeconds);
+    return mapped;
   }
 }

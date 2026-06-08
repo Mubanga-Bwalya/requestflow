@@ -121,8 +121,38 @@ export function useAdminUsers() {
   }, [loadMeta]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+    const cacheKey = `users:page:${page}:${LIST_PAGE_SIZE}:${deptFilter === "ALL" ? "ALL" : deptFilter}`;
+    const cached = peekApiCache<typeof result>(cacheKey);
+    if (cached) {
+      setResult(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    void (async () => {
+      try {
+        setLoadError(null);
+        const data = await fetchUsers({
+          page,
+          limit: LIST_PAGE_SIZE,
+          departmentName: deptFilter,
+        });
+        if (!cancelled) setResult(data);
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(apiErrorMessage(e, "Could not load users. Please try again."));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deptFilter, page]);
 
   useEffect(() => {
     setPage(1);

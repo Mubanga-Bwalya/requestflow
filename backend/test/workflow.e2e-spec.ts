@@ -10,12 +10,13 @@ import {
 import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 import { createSubmittedHrRequest } from './e2e/hr-request.helpers';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { SEED } from './e2e/seed-constants';
+import { resolveSeedUsers, type ResolvedSeedUsers } from './e2e/resolve-users';
 
 describe('Request workflow integrity (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let dbReady = false;
+  let users: ResolvedSeedUsers;
 
   beforeAll(async () => {
     const ctx = await createE2eApp();
@@ -25,6 +26,7 @@ describe('Request workflow integrity (e2e)', () => {
     if (dbReady) {
       try {
         await loginJane(app);
+        users = await resolveSeedUsers(prisma);
       } catch {
         dbReady = false;
       }
@@ -65,7 +67,7 @@ describe('Request workflow integrity (e2e)', () => {
       .post(`/requests/${requestId}/request-missing-information`)
       .set(authHeader(henryToken))
       .send({ items: [{ reasonLabel: 'Need more detail' }] })
-      .expect(200);
+      .expect(201);
 
     await request(app.getHttpServer())
       .post(`/requests/${requestId}/provide-information`)
@@ -110,7 +112,7 @@ describe('Request workflow integrity (e2e)', () => {
       .post(`/requests/${requestId}/request-missing-information`)
       .set(authHeader(henryToken))
       .send({ items: [{ reasonLabel: 'Need policy scope' }] })
-      .expect(200);
+      .expect(201);
 
     await request(app.getHttpServer())
       .post(`/requests/${requestId}/provide-information`)
@@ -118,7 +120,7 @@ describe('Request workflow integrity (e2e)', () => {
       .send({
         fieldAnswers: [{ fieldKey: 'description', answerText: 'Clarified scope for HR' }],
       })
-      .expect(200);
+      .expect(201);
   });
 
   it('PATCH /requests/:id/status — COMPLETED blocked when assignment not complete (400)', async () => {
@@ -140,7 +142,7 @@ describe('Request workflow integrity (e2e)', () => {
       .set(authHeader(henryToken))
       .send({
         requestId,
-        memberUserIds: [SEED.users.helenHr],
+        memberUserIds: [users.helenHr],
       })
       .expect(201);
 

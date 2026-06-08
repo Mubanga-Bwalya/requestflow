@@ -4,6 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, RequestStatus } from '@prisma/client';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
+import { CacheKeys } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
 import { paginatedResult, resolveListPagination } from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateDepartmentDto } from './dto/create-department.dto';
@@ -18,7 +21,10 @@ const TERMINAL_STATUSES: RequestStatus[] = [
 
 @Injectable()
 export class DepartmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private async activeRequestCount(departmentId: string) {
     return this.prisma.request.count({
@@ -204,6 +210,7 @@ export class DepartmentsService {
       return dept;
     });
 
+    await invalidateAdminStatsCache(this.cache);
     return this.findOne(created.id);
   }
 
@@ -266,6 +273,18 @@ export class DepartmentsService {
       },
     });
 
+    if (dto.managerUserId !== undefined) {
+      const authKeys = new Set<string>();
+      if (existing.managerUserId) authKeys.add(existing.managerUserId);
+      if (dto.managerUserId) authKeys.add(dto.managerUserId);
+      await Promise.all(
+        [...authKeys].map((userId) =>
+          this.cache.del(CacheKeys.authUser(userId)),
+        ),
+      );
+    }
+
+    await invalidateAdminStatsCache(this.cache);
     return this.findOne(id);
   }
 }

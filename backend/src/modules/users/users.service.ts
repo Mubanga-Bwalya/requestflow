@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { allowDemoDefaultPassword, isProduction } from '../../config/env';
+import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
 import { CacheKeys } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
 import { paginatedResult, resolveListPagination } from '../../common/pagination';
@@ -117,25 +118,42 @@ export class UsersService {
     return mapUserToResponse(user);
   }
 
-  async findByDepartment(departmentName: string) {
-    const rows = await this.prisma.user.findMany({
-      where: {
-        isActive: true,
-        department: {
-          name: { equals: departmentName.trim(), mode: 'insensitive' },
+  async findByDepartment(
+    departmentName: string,
+    page?: number,
+    limit?: number,
+  ) {
+    const where: Prisma.UserWhereInput = {
+      isActive: true,
+      department: {
+        name: {
+          equals: departmentName.trim(),
+          mode: Prisma.QueryMode.insensitive,
         },
       },
-      orderBy: { fullName: 'asc' },
-      take: 100,
-      include: { role: { select: { name: true } } },
-    });
-    return rows.map((u) => ({
-      id: u.id,
-      fullName: u.fullName,
-      email: u.email,
-      jobTitle: u.jobTitle,
-      roleName: u.role?.name ?? null,
-    }));
+    };
+    const pagination = resolveListPagination(page, limit);
+    const [total, rows] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        orderBy: { fullName: 'asc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+        include: { role: { select: { name: true } } },
+      }),
+    ]);
+    return paginatedResult(
+      rows.map((u) => ({
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        jobTitle: u.jobTitle,
+        roleName: u.role?.name ?? null,
+      })),
+      total,
+      pagination,
+    );
   }
 
   async create(dto: CreateUserDto) {
@@ -180,6 +198,7 @@ export class UsersService {
         role: { select: { id: true, name: true } },
       },
     });
+    await invalidateAdminStatsCache(this.cache);
     return mapUserToResponse(user);
   }
 
@@ -243,6 +262,7 @@ export class UsersService {
       },
     });
     await this.cache.del(CacheKeys.authUser(id));
+    await invalidateAdminStatsCache(this.cache);
     return mapUserToResponse(user);
   }
 }
