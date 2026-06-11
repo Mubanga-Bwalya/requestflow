@@ -6,7 +6,10 @@ import {
   assignmentStatusesForTab,
   parseListTab,
 } from '../../common/list-tab-filters';
-import { paginatedResult, resolveListPagination } from '../../common/pagination';
+import {
+  paginatedResult,
+  resolveListPagination,
+} from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ASSIGNMENT_LIST_INCLUDE,

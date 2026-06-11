@@ -9,9 +9,18 @@ export function Table({ children }: { children: ReactNode }) {
   );
 }
 
-export function Th({ children, className }: { children: ReactNode; className?: string }) {
+export function Th({
+  children,
+  className,
+  scope = "col",
+}: {
+  children: ReactNode;
+  className?: string;
+  scope?: "col" | "row";
+}) {
   return (
     <th
+      scope={scope}
       className={cn(
         "border-b border-brand-dark/25 bg-brand-dark px-3 py-3 text-left text-xs font-bold uppercase tracking-wide text-white",
         className,

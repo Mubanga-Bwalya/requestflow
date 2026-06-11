@@ -60,14 +60,18 @@ export class UsersController {
   @Throttle({ writes: { limit: 60, ttl: 60_000 } })
   @Post()
   @UseGuards(AdminRoleGuard)
-  create(@Body() body: CreateUserDto) {
-    return this.usersService.create(body);
+  create(@Body() body: CreateUserDto, @CurrentUser() actor: RequestUser) {
+    return this.usersService.create(body, actor.id);
   }
 
   @Throttle({ writes: { limit: 60, ttl: 60_000 } })
   @Patch(':id')
   @UseGuards(AdminRoleGuard)
-  update(@Param('id') id: string, @Body() body: UpdateUserDto) {
-    return this.usersService.update(id, body);
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdateUserDto,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    return this.usersService.update(id, body, actor.id);
   }
 }

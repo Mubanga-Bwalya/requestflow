@@ -1,4 +1,6 @@
-import { buildSecurityHeaders } from "./security-headers.mjs";
+import { buildSecurityHeaders, validateProductionEnv } from "./security-headers.mjs";
+
+validateProductionEnv();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

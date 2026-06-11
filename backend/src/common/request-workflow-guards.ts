@@ -66,9 +66,12 @@ export function assertRequestStatusAlignedWithAssignment(
   }
 
   if (targetStatus === 'READY_FOR_REVIEW') {
-    const aligned = ['IN_PROGRESS', 'READY_FOR_REVIEW', 'COMPLETED'].includes(
-      assignment.status,
-    );
+    const aligned = [
+      'IN_PROGRESS',
+      'READY_FOR_REVIEW',
+      'COMPLETED',
+      'REOPENED',
+    ].includes(assignment.status);
     if (!aligned) {
       throw new BadRequestException(
         'Request cannot be marked ready for review until assignment work has started.',

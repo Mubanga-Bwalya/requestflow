@@ -7,7 +7,7 @@ import {
   authHeader,
   loginHelen,
   loginHenry,
-  loginJane,
+  loginMusa,
 } from './e2e/auth-helpers';
 import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 import { createSubmittedHrRequest } from './e2e/hr-request.helpers';
@@ -26,7 +26,7 @@ describe('Concurrency safety (e2e)', () => {
     dbReady = await isDatabaseReady(prisma);
     if (dbReady) {
       try {
-        await loginJane(app);
+        await loginMusa(app);
         users = await resolveSeedUsers(prisma);
       } catch {
         dbReady = false;
@@ -53,9 +53,9 @@ describe('Concurrency safety (e2e)', () => {
   it('POST /assignments — concurrent assign returns one 201 and one 409', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
-    const requestId = await createSubmittedHrRequest(app, janeToken, 'Concurrent assign');
+    const requestId = await createSubmittedHrRequest(app, musaToken, 'Concurrent assign');
     await acceptRequest(requestId, henryToken);
 
     const payload = {
@@ -84,9 +84,9 @@ describe('Concurrency safety (e2e)', () => {
   it('PATCH /requests/:id/status — concurrent update returns one 200 and one 409', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
-    const requestId = await createSubmittedHrRequest(app, janeToken, 'Concurrent status');
+    const requestId = await createSubmittedHrRequest(app, musaToken, 'Concurrent status');
 
     const [first, second] = await Promise.all([
       request(app.getHttpServer())
@@ -106,10 +106,10 @@ describe('Concurrency safety (e2e)', () => {
   it('PATCH /assignments/:id/status — concurrent update returns one 200 and one 409', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
     const helenToken = await loginHelen(app);
-    const requestId = await createSubmittedHrRequest(app, janeToken, 'Concurrent assignment status');
+    const requestId = await createSubmittedHrRequest(app, musaToken, 'Concurrent assignment status');
     await acceptRequest(requestId, henryToken);
 
     const created = await request(app.getHttpServer())
@@ -138,9 +138,9 @@ describe('Concurrency safety (e2e)', () => {
   it('POST request-missing-information — concurrent duplicate returns one 201 and one 409', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
-    const requestId = await createSubmittedHrRequest(app, janeToken, 'Concurrent missing info');
+    const requestId = await createSubmittedHrRequest(app, musaToken, 'Concurrent missing info');
     await acceptRequest(requestId, henryToken);
 
     const payload = { items: [{ reasonLabel: 'Need more detail' }] };
@@ -168,10 +168,10 @@ describe('Concurrency safety (e2e)', () => {
   it('PATCH milestone — concurrent updates keep progress consistent with DB', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
     const helenToken = await loginHelen(app);
-    const requestId = await createSubmittedHrRequest(app, janeToken, 'Concurrent milestone');
+    const requestId = await createSubmittedHrRequest(app, musaToken, 'Concurrent milestone');
     await acceptRequest(requestId, henryToken);
 
     const created = await request(app.getHttpServer())

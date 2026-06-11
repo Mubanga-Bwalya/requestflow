@@ -5,10 +5,7 @@ import {
   resolveRequestDeadline,
 } from './request-deadline.util';
 
-function dateField(
-  fieldKey: string,
-  isRequired = true,
-): TemplateField {
+function dateField(fieldKey: string, isRequired = true): TemplateField {
   return {
     id: fieldKey,
     templateId: 'tpl',

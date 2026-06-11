@@ -40,7 +40,10 @@ export class RequestsController {
     @Query('limit') limit?: string,
   ) {
     if (targetDepartmentName?.trim()) {
-      assertManagerInboxAccess(user, targetDepartmentName);
+      assertManagerInboxAccess(
+        user.managedDepartmentNames,
+        targetDepartmentName,
+      );
     }
     const paginate = wantsPagination(page, limit);
     return this.requestsService.findAll({

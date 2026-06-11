@@ -23,7 +23,7 @@ async function main() {
 
   const count = arg('requests', 100);
   const user = await prisma.user.findFirst({
-    where: { email: 'jane@requestflow.local', isActive: true },
+    where: { email: 'musa@requestflow.local', isActive: true },
     include: { department: true },
   });
   const hr = await prisma.department.findFirst({ where: { name: 'HR' } });
@@ -32,7 +32,7 @@ async function main() {
   });
 
   if (!user?.departmentId || !hr || !template) {
-    throw new Error('Seed core data (002) required: Jane, HR department, template.');
+    throw new Error('Seed core data (002) required: Musa, HR department, template.');
   }
 
   const year = new Date().getFullYear();

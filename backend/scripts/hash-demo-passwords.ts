@@ -1,6 +1,10 @@
 /**
- * One-shot: bcrypt-hash password_hash for all @requestflow.local users (demo password: requestflow).
- * Run: npm run hash-passwords
+ * One-shot legacy migration: bcrypt-hash plaintext password_hash values for @requestflow.local users.
+ * Does not run on routine seed. Use only when upgrading DBs that still have plaintext hashes.
+ *
+ *   npm run hash-passwords --workspace=backend
+ *
+ * For fresh demo users: npm run db:seed --workspace=backend -- --reset-passwords
  */
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';

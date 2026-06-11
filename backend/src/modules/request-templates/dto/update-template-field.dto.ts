@@ -40,9 +40,9 @@ export class UpdateTemplateFieldDto {
   @IsBoolean()
   isRequired?: boolean;
 
-  @ValidateIf((dto: UpdateTemplateFieldDto) =>
-    dto.fieldType !== undefined &&
-    OPTION_FIELD_TYPES.includes(dto.fieldType),
+  @ValidateIf(
+    (dto: UpdateTemplateFieldDto) =>
+      dto.fieldType !== undefined && OPTION_FIELD_TYPES.includes(dto.fieldType),
   )
   @IsArray()
   @ArrayMinSize(1)

@@ -7,7 +7,7 @@ import {
   loginAdmin,
   loginHelen,
   loginHenry,
-  loginJane,
+  loginMusa,
   loginMark,
   loginMary,
 } from './e2e/auth-helpers';
@@ -36,7 +36,7 @@ describe('Security regression (e2e)', () => {
         )`,
       );
       try {
-        await loginJane(app);
+        await loginMusa(app);
         users = await resolveSeedUsers(prisma);
       } catch {
         dbReady = false;
@@ -62,12 +62,12 @@ describe('Security regression (e2e)', () => {
   it('GET /requests/:id — cross-user isolation (404)', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const helenToken = await loginHelen(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'IDOR isolation test' }))
       .expect(201);
 
@@ -82,17 +82,17 @@ describe('Security regression (e2e)', () => {
   it('PATCH /requests/:id/status — non-manager cannot ACCEPT (403)', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'Status authz test' }))
       .expect(201);
 
     await request(app.getHttpServer())
       .patch(`/requests/${created.body.id}/status`)
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send({ status: 'ACCEPTED' })
       .expect(403);
   });
@@ -100,12 +100,12 @@ describe('Security regression (e2e)', () => {
   it('PATCH /requests/:id/status — target manager can ACCEPT', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'Manager accept test' }))
       .expect(201);
 
@@ -119,12 +119,12 @@ describe('Security regression (e2e)', () => {
   it('POST /requests/:id/request-missing-information — non-manager forbidden (403)', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const helenToken = await loginHelen(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'Missing info authz' }))
       .expect(201);
 
@@ -138,13 +138,13 @@ describe('Security regression (e2e)', () => {
   it('GET /assignments/:id — non-member isolation (404)', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
     const markToken = await loginMark(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'Assignment IDOR test' }))
       .expect(201);
 
@@ -174,14 +174,14 @@ describe('Security regression (e2e)', () => {
   it('PATCH /assignments/:id/milestones/:milestoneId — non-member forbidden (403)', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
     const helenToken = await loginHelen(app);
     const markToken = await loginMark(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'Milestone authz test' }))
       .expect(201);
 
@@ -222,13 +222,13 @@ describe('Security regression (e2e)', () => {
   it('PATCH /assignments/:id/status — non-member forbidden (403)', async () => {
     if (skipIfNoDb()) return;
 
-    const janeToken = await loginJane(app);
+    const musaToken = await loginMusa(app);
     const henryToken = await loginHenry(app);
     const markToken = await loginMark(app);
 
     const created = await request(app.getHttpServer())
       .post('/requests')
-      .set(authHeader(janeToken))
+      .set(authHeader(musaToken))
       .send(hrPolicyRequestPayload({ title: 'Assignment mutate authz' }))
       .expect(201);
 
@@ -253,6 +253,116 @@ describe('Security regression (e2e)', () => {
       .expect(403);
   });
 
+  it('PATCH /requests/:id/status COMPLETED — member forbidden (403)', async () => {
+    if (skipIfNoDb()) return;
+
+    const musaToken = await loginMusa(app);
+    const henryToken = await loginHenry(app);
+    const helenToken = await loginHelen(app);
+
+    const created = await request(app.getHttpServer())
+      .post('/requests')
+      .set(authHeader(musaToken))
+      .send(hrPolicyRequestPayload({ title: 'Member complete request authz' }))
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/requests/${created.body.id}/status`)
+      .set(authHeader(henryToken))
+      .send({ status: 'ACCEPTED' });
+
+    await request(app.getHttpServer())
+      .post('/assignments')
+      .set(authHeader(henryToken))
+      .send({
+        requestId: created.body.id,
+        memberUserIds: [users.helenHr],
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/requests/${created.body.id}/status`)
+      .set(authHeader(helenToken))
+      .send({ status: 'COMPLETED' })
+      .expect(403);
+  });
+
+  it('PATCH /assignments/:id/status COMPLETED — member forbidden (403)', async () => {
+    if (skipIfNoDb()) return;
+
+    const musaToken = await loginMusa(app);
+    const henryToken = await loginHenry(app);
+    const helenToken = await loginHelen(app);
+
+    const created = await request(app.getHttpServer())
+      .post('/requests')
+      .set(authHeader(musaToken))
+      .send(hrPolicyRequestPayload({ title: 'Member complete assignment authz' }))
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/requests/${created.body.id}/status`)
+      .set(authHeader(henryToken))
+      .send({ status: 'ACCEPTED' });
+
+    const assignment = await request(app.getHttpServer())
+      .post('/assignments')
+      .set(authHeader(henryToken))
+      .send({
+        requestId: created.body.id,
+        memberUserIds: [users.helenHr],
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/assignments/${assignment.body.id}/status`)
+      .set(authHeader(helenToken))
+      .send({ status: 'COMPLETED' })
+      .expect(403);
+  });
+
+  it('PATCH /assignments/:id/status READY_FOR_REVIEW — member forbidden, manager allowed', async () => {
+    if (skipIfNoDb()) return;
+
+    const musaToken = await loginMusa(app);
+    const henryToken = await loginHenry(app);
+    const helenToken = await loginHelen(app);
+
+    const created = await request(app.getHttpServer())
+      .post('/requests')
+      .set(authHeader(musaToken))
+      .send(hrPolicyRequestPayload({ title: 'Ready for review authz' }))
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/requests/${created.body.id}/status`)
+      .set(authHeader(henryToken))
+      .send({ status: 'ACCEPTED' });
+
+    const assignment = await request(app.getHttpServer())
+      .post('/assignments')
+      .set(authHeader(henryToken))
+      .send({
+        requestId: created.body.id,
+        memberUserIds: [users.helenHr],
+      })
+      .expect(201);
+
+    const assignmentId = assignment.body.id as string;
+
+    await request(app.getHttpServer())
+      .patch(`/assignments/${assignmentId}/status`)
+      .set(authHeader(helenToken))
+      .send({ status: 'READY_FOR_REVIEW' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .patch(`/assignments/${assignmentId}/status`)
+      .set(authHeader(henryToken))
+      .send({ status: 'READY_FOR_REVIEW' })
+      .expect(200);
+  });
+
   it('demoted admin — old token rejected on admin API (403)', async () => {
     if (skipIfNoDb()) return;
 
@@ -274,6 +384,33 @@ describe('Security regression (e2e)', () => {
         data: { roleId: SEED.role.admin },
       });
     }
+  });
+
+  it('POST /assignments — cross-department assignee rejected (400)', async () => {
+    if (skipIfNoDb()) return;
+
+    const musaToken = await loginMusa(app);
+    const henryToken = await loginHenry(app);
+
+    const created = await request(app.getHttpServer())
+      .post('/requests')
+      .set(authHeader(musaToken))
+      .send(hrPolicyRequestPayload({ title: 'Cross-dept assignee test' }))
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/requests/${created.body.id}/status`)
+      .set(authHeader(henryToken))
+      .send({ status: 'ACCEPTED' });
+
+    await request(app.getHttpServer())
+      .post('/assignments')
+      .set(authHeader(henryToken))
+      .send({
+        requestId: created.body.id,
+        memberUserIds: [users.markMkt],
+      })
+      .expect(400);
   });
 
   it('DTO validation — invalid assignment payload (400)', async () => {

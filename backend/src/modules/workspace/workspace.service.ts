@@ -116,7 +116,11 @@ export class WorkspaceService {
       unreadNotificationCount,
     };
 
-    await this.cache.setJson(cacheKey, payload, CacheTtl.workspaceSummarySeconds);
+    await this.cache.setJson(
+      cacheKey,
+      payload,
+      CacheTtl.workspaceSummarySeconds,
+    );
     return payload;
   }
 }

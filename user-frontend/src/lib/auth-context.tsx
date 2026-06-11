@@ -4,6 +4,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react";
 import { fetchCurrentUser } from "@/lib/auth-api";
+import { formatDisplayRole } from "@/lib/role-utils";
 import { invalidateApiCache } from "@/lib/query-cache";
 import { clearSession, loadSession, saveSession, type AppSession } from "@/lib/session";
 import { SESSION_EXPIRED_EVENT } from "@/lib/session-events";
@@ -27,6 +28,8 @@ type AuthState = {
   email?: string;
   role?: string;
   departmentName?: string | null;
+  inboxDepartmentName?: string | null;
+  managedDepartmentNames?: string[];
 };
 
 type State = {
@@ -50,13 +53,15 @@ function sessionToAuth(session: AppSession): AuthState {
     email: session.email,
     role: session.roleName ?? undefined,
     departmentName: session.departmentName,
+    inboxDepartmentName: session.inboxDepartmentName ?? null,
+    managedDepartmentNames: session.managedDepartmentNames ?? [],
   };
 }
 
 function sessionToProfile(session: AppSession): UserProfile {
   return {
     displayName: session.fullName,
-    role: session.roleName ?? "Employee",
+    role: formatDisplayRole(session.roleName, session.jobTitle),
     email: session.email,
   };
 }
@@ -74,6 +79,7 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_SESSION": {
       saveSession(action.payload);
+      invalidateApiCache();
       return {
         ...state,
         auth: sessionToAuth(action.payload),

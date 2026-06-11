@@ -39,7 +39,7 @@ function statusClasses(status: string) {
     s === "SUBMITTED" ||
     s === "IN_PROGRESS"
   ) {
-    return "border-brand-primary/35 bg-brand-primary/10 text-brand-primary";
+    return "border-brand-primary/40 bg-brand-primary/10 text-brand-dark";
   }
 
   if (s === "REJECTED" || s === "CANCELLED" || s === "DECLINED") {

@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
 import { CacheKeys, CacheTtl } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
-import { paginatedResult, resolveListPagination } from '../../common/pagination';
+import { NotificationEmailService } from '../../common/email/notification-email.service';
+import {
+  paginatedResult,
+  resolveListPagination,
+} from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export type CreateNotificationInput = {
@@ -20,6 +24,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly emails: NotificationEmailService,
   ) {}
 
   private async invalidateUnread(userId: string) {
@@ -40,6 +45,7 @@ export class NotificationsService {
       },
     });
     await this.invalidateUnread(input.userId);
+    void this.emails.dispatch(input);
     return row;
   }
 
@@ -58,6 +64,7 @@ export class NotificationsService {
     });
     const userIds = [...new Set(inputs.map((i) => i.userId))];
     await Promise.all(userIds.map((id) => this.invalidateUnread(id)));
+    void this.emails.dispatchMany(inputs);
   }
 
   async countUnread(userId: string) {
@@ -68,7 +75,11 @@ export class NotificationsService {
     const count = await this.prisma.notification.count({
       where: { userId, isRead: false },
     });
-    await this.cache.setJson(cacheKey, count, CacheTtl.notificationUnreadSeconds);
+    await this.cache.setJson(
+      cacheKey,
+      count,
+      CacheTtl.notificationUnreadSeconds,
+    );
     return count;
   }
 

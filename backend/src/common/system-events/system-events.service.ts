@@ -22,8 +22,34 @@ export type RecordSystemEventInput = {
 @Injectable()
 export class SystemEventsService {
   private readonly logger = new Logger(SystemEventsService.name);
+  private readonly onceKeys = new Set<string>();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Persists at most one event per key per process (infra warnings, etc.). */
+  async recordOnce(key: string, input: RecordSystemEventInput): Promise<void> {
+    if (this.onceKeys.has(key)) return;
+    this.onceKeys.add(key);
+    await this.record(input);
+  }
+
+  /** Skips recording when the same code was logged recently (survives API restarts). */
+  async recordIfNotRecent(
+    input: RecordSystemEventInput,
+    withinMs = 86_400_000,
+  ): Promise<void> {
+    try {
+      const since = new Date(Date.now() - withinMs);
+      const exists = await this.prisma.systemEvent.findFirst({
+        where: { code: input.code, createdAt: { gte: since } },
+        select: { id: true },
+      });
+      if (exists) return;
+    } catch {
+      /* proceed if lookup fails */
+    }
+    await this.record(input);
+  }
 
   /** Persists operational events for the admin dashboard; never throws to callers. */
   async record(input: RecordSystemEventInput): Promise<void> {
@@ -75,15 +101,12 @@ export class SystemEventsService {
       userName: r.user?.fullName ?? null,
       userEmail: r.user?.email ?? null,
       createdAt: r.createdAt.toISOString(),
+      context: r.context,
     };
   }
 
-  async listPaginated(
-    pagination: PaginationParams,
-    level?: SystemEventLevel,
-  ) {
-    const where =
-      level === 'ERROR' || level === 'WARN' ? { level } : undefined;
+  async listPaginated(pagination: PaginationParams, level?: SystemEventLevel) {
+    const where = level === 'ERROR' || level === 'WARN' ? { level } : undefined;
     const [total, rows] = await Promise.all([
       this.prisma.systemEvent.count({ where }),
       this.prisma.systemEvent.findMany({

@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { ClipboardList } from "lucide-react";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LoadingScreen } from "@/components/shared/loading-screen";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
@@ -12,12 +13,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tab, Tabs } from "@/components/ui/tabs";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useMyAssignments } from "@/hooks/use-my-assignments";
 import { useAuth } from "@/lib/auth-context";
 import { PaginationBar } from "@/components/shared/pagination-bar";
-import { fetchMyAssignments } from "@/lib/assignments-api";
-import { LIST_PAGE_SIZE } from "@/lib/page-size";
-import { peekApiCache } from "@/lib/query-cache";
-import type { Assignment } from "@/types/task";
 import { LIST_TAB_LABELS, statusLabel, type ListTabBucket } from "@/lib/request-status-groups";
 
 export default function Page() {
@@ -31,12 +29,11 @@ export default function Page() {
 function TasksPageContent() {
   const searchParams = useSearchParams();
   const { state } = useAuth();
-  const [result, setResult] = useState({ items: [] as Assignment[], total: 0, page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<ListTabBucket>("ALL");
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q.trim(), 300);
+  const { result, loading, error, reload } = useMyAssignments(state.auth.userId, page, tab, debouncedQ);
 
   useEffect(() => {
     const t = searchParams.get("tab");
@@ -49,36 +46,6 @@ function TasksPageContent() {
     setPage(1);
   }, [tab, debouncedQ]);
 
-  useEffect(() => {
-    if (!state.auth.userId) {
-      setResult({ items: [], total: 0, page: 1, totalPages: 1 });
-      setLoading(false);
-      return;
-    }
-    const cacheKey = `assignments:mine:${tab}:${debouncedQ}:${page}:${LIST_PAGE_SIZE}`;
-    const cached = peekApiCache<typeof result>(cacheKey);
-    if (cached) {
-      setResult(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-    const controller = new AbortController();
-    fetchMyAssignments({ page, limit: LIST_PAGE_SIZE, tab, q: debouncedQ || undefined }, controller.signal)
-      .then((data) => {
-        if (!controller.signal.aborted) setResult(data);
-      })
-      .catch(() => {
-        if (!cached && !controller.signal.aborted) {
-          setResult({ items: [], total: 0, page: 1, totalPages: 1 });
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [state.auth.userId, page, tab, debouncedQ]);
-
   const rows: DataTableRow[] = useMemo(
     () =>
       result.items.map((a) => ({
@@ -90,7 +57,11 @@ function TasksPageContent() {
         progress: `${a.progress}%`,
         deadline: a.deadline,
         milestones: a.milestoneCount ?? a.milestones.length,
-        __view: <TableOpenLink href={`/tasks/${a.id}`} />,
+        __view: (
+          <TableOpenLink
+            href={a.requestId ? `/requests/${a.requestId}?from=tasks` : `/tasks/${a.id}`}
+          />
+        ),
       })),
     [result.items],
   );
@@ -101,7 +72,7 @@ function TasksPageContent() {
     <>
       <PageHeader
         title="My Assigned Tasks"
-        description="Work your manager assigned to you from Incoming requests. Open a task to update milestones and progress."
+        description="Work assigned to you from Incoming requests. Open a row to manage milestones and progress on the request page."
       />
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -125,13 +96,16 @@ function TasksPageContent() {
           ))}
         </Tabs>
 
+        <ApiErrorBanner message={error} onRetry={() => void reload()} />
+
         <Card>
           <CardContent className="space-y-3">
             {loading ? (
               <p className="text-sm text-slate-600">Loading tasks…</p>
-            ) : rows.length ? (
+            ) : error ? null : rows.length ? (
               <>
                 <DataTable
+                  caption="My assigned tasks"
                   columns={[
                     { key: "title", label: "Task" },
                     { key: "relatedRequest", label: "Request #" },

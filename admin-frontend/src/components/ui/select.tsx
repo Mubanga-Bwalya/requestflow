@@ -110,7 +110,7 @@ function CustomSelect({
         aria-controls={listId}
         className={cn(
           fieldControlClassName,
-          "flex items-center justify-between gap-2 py-0 pl-4 pr-3 text-left",
+          "rf-focus-ring flex items-center justify-between gap-2 py-0 pl-4 pr-3 text-left",
           !selected?.value && "text-muted",
           open && "border-brand-primary outline outline-[3px] outline-brand-magenta outline-offset-2",
         )}

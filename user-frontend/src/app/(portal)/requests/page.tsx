@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { List } from "lucide-react";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { LoadingScreen } from "@/components/shared/loading-screen";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -14,12 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tab, Tabs } from "@/components/ui/tabs";
+import { useMyRequests } from "@/hooks/use-my-requests";
 import { useAuth } from "@/lib/auth-context";
 import { PaginationBar } from "@/components/shared/pagination-bar";
-import { fetchMyRequests } from "@/lib/requests-api";
-import { LIST_PAGE_SIZE } from "@/lib/page-size";
-import { peekApiCache } from "@/lib/query-cache";
-import type { RequestItem } from "@/types/request";
 import { LIST_TAB_LABELS, type ListTabBucket } from "@/lib/request-status-groups";
 
 export default function Page() {
@@ -42,12 +40,11 @@ function RequestTitleCell({ title, requestNumber }: { title: string; requestNumb
 function RequestsPageContent() {
   const searchParams = useSearchParams();
   const { state } = useAuth();
-  const [result, setResult] = useState({ items: [] as RequestItem[], total: 0, page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<ListTabBucket>("ALL");
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q.trim(), 300);
+  const { result, loading, error, reload } = useMyRequests(state.auth.userId, page, tab, debouncedQ);
 
   useEffect(() => {
     const t = searchParams.get("tab");
@@ -59,36 +56,6 @@ function RequestsPageContent() {
   useEffect(() => {
     setPage(1);
   }, [tab, debouncedQ]);
-
-  useEffect(() => {
-    if (!state.auth.userId) {
-      setResult({ items: [], total: 0, page: 1, totalPages: 1 });
-      setLoading(false);
-      return;
-    }
-    const cacheKey = `requests:mine:${tab}:${debouncedQ}:${page}:${LIST_PAGE_SIZE}`;
-    const cached = peekApiCache<typeof result>(cacheKey);
-    if (cached) {
-      setResult(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-    const controller = new AbortController();
-    fetchMyRequests({ page, limit: LIST_PAGE_SIZE, tab, q: debouncedQ || undefined }, controller.signal)
-      .then((data) => {
-        if (!controller.signal.aborted) setResult(data);
-      })
-      .catch(() => {
-        if (!cached && !controller.signal.aborted) {
-          setResult({ items: [], total: 0, page: 1, totalPages: 1 });
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [state.auth.userId, page, tab, debouncedQ]);
 
   const rows: DataTableRow[] = useMemo(
     () =>
@@ -129,16 +96,13 @@ function RequestsPageContent() {
 
         <Tabs>
           {LIST_TAB_LABELS.map((t) => (
-            <Tab
-              key={t.id}
-              active={tab === t.id}
-              attention={t.id === "NEEDS_ACTION"}
-              onClick={() => setTab(t.id)}
-            >
+            <Tab key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
               {t.label}
             </Tab>
           ))}
         </Tabs>
+
+        <ApiErrorBanner message={error} onRetry={() => void reload()} />
 
         <Card>
           <CardContent className="space-y-3">
@@ -159,7 +123,7 @@ function RequestsPageContent() {
               ) : null}
             </div>
 
-            {!loading && rows.length ? (
+            {!loading && !error && rows.length ? (
               <>
                 <DataTable
                   columns={[
@@ -181,7 +145,7 @@ function RequestsPageContent() {
                   onPageChange={setPage}
                 />
               </>
-            ) : !loading ? (
+            ) : !loading && !error ? (
               <EmptyState
                 icon={List}
                 heading="No requests match your filters"

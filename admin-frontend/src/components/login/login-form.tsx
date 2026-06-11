@@ -51,7 +51,7 @@ export function LoginForm({
           icon={User}
           type="email"
           value={email}
-          placeholder="admin@requestflow.local"
+          placeholder="name@company.com"
           autoComplete="email"
           required
           error={fieldErrors.email}

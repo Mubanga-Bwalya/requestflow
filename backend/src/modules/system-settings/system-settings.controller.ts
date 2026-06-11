@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { RequestUser } from '../../common/auth.types';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminRoleGuard } from '../../common/guards/admin-role.guard';
 import { SystemSettingsService } from './system-settings.service';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
@@ -16,7 +18,10 @@ export class SystemSettingsController {
   @Throttle({ writes: { limit: 60, ttl: 60_000 } })
   @Patch()
   @UseGuards(AdminRoleGuard)
-  update(@Body() body: UpdateSystemSettingsDto) {
-    return this.systemSettingsService.update(body);
+  update(
+    @Body() body: UpdateSystemSettingsDto,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    return this.systemSettingsService.update(body, actor.id);
   }
 }

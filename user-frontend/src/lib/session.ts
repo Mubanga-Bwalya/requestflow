@@ -5,7 +5,11 @@ export type AppSession = {
   email: string;
   fullName: string;
   roleName: string | null;
+  jobTitle?: string | null;
   departmentName: string | null;
+  /** Set only when user is appointed department manager; null for non-managers. */
+  inboxDepartmentName?: string | null;
+  managedDepartmentNames?: string[];
 };
 
 const STORAGE_KEY = "requestflow_session";

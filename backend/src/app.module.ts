@@ -2,12 +2,15 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
+import { AuditLogModule } from './common/audit-log/audit-log.module';
+import { EmailModule } from './common/email/email.module';
 import { SystemEventsModule } from './common/system-events/system-events.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { routeUsesNamedThrottler } from './common/throttle-helpers';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
+import { DiagnosticsModule } from './modules/diagnostics/diagnostics.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
 import { HealthModule } from './modules/health/health.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -43,7 +46,9 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     PrismaModule,
     CacheModule,
+    AuditLogModule,
     SystemEventsModule,
+    EmailModule,
     AccessPolicyModule,
     HealthModule,
     AuthModule,
@@ -56,6 +61,7 @@ import { PrismaModule } from './prisma/prisma.module';
     NotificationsModule,
     SystemSettingsModule,
     AdminModule,
+    DiagnosticsModule,
     WorkspaceModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ApiExceptionFilter }],

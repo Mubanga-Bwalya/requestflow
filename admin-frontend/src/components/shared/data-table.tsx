@@ -6,12 +6,21 @@ import { Table, Td, Th } from "@/components/ui/table";
 export type DataTableColumn = { key: string; label: string };
 export type DataTableRow = Record<string, string | number | ReactNode>;
 
-export function DataTable({ columns, rows }: { columns: DataTableColumn[]; rows: DataTableRow[] }) {
+export function DataTable({
+  columns,
+  rows,
+  caption,
+}: {
+  columns: DataTableColumn[];
+  rows: DataTableRow[];
+  caption?: string;
+}) {
   return (
     <>
       <DataTableMobileList columns={columns} rows={rows} />
       <div className="hidden md:block">
         <Table>
+          {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>
             <tr>
               {columns.map((c) => (
@@ -23,7 +32,10 @@ export function DataTable({ columns, rows }: { columns: DataTableColumn[]; rows:
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={i} className="rf-table-row even:bg-brand-primary/[0.02] hover:bg-brand-primary/[0.06]">
+              <tr
+                key={typeof row.id === "string" || typeof row.id === "number" ? String(row.id) : i}
+                className="rf-table-row even:bg-brand-primary/[0.02] hover:bg-brand-primary/[0.06]"
+              >
                 {columns.map((c) => (
                   <Td
                     key={c.key}

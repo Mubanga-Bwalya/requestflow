@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import { AppErrorBoundary } from "@/components/layout/app-error-boundary";
 import { AccessibilityApplier } from "@/components/layout/accessibility-applier";
+import { ClientErrorReporter } from "@/components/layout/client-error-reporter";
 import { AuthProvider } from "@/lib/auth-context";
 
 const poppins = Poppins({
@@ -21,8 +23,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={poppins.variable}>
       <body className={poppins.className}>
         <AuthProvider>
-          <AccessibilityApplier />
-          {children}
+          <AppErrorBoundary>
+            <ClientErrorReporter />
+            <AccessibilityApplier />
+            {children}
+          </AppErrorBoundary>
         </AuthProvider>
       </body>
     </html>

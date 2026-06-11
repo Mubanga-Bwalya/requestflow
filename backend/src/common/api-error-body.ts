@@ -50,5 +50,5 @@ export function buildApiErrorBody(
 }
 
 export function isServerErrorStatus(status: number): boolean {
-  return status >= HttpStatus.INTERNAL_SERVER_ERROR;
+  return status >= Number(HttpStatus.INTERNAL_SERVER_ERROR);
 }

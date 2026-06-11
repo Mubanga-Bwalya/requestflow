@@ -51,6 +51,11 @@ export function CreateRequestClient({ presetDepartment }: { presetDepartment: De
         <CardContent className="space-y-5 pt-6 md:pt-6">
           {!isSuccess ? <CreateRequestStepper currentStep={wizard.step} /> : null}
 
+          {wizard.departmentsError ? (
+            <div className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+              {wizard.departmentsError}
+            </div>
+          ) : null}
           {wizard.apiError ? (
             <div className="rounded-control border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               {wizard.apiError}

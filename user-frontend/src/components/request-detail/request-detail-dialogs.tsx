@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { MissingInfoAnswerField } from "@/components/request-detail/missing-info-answer-field";
 import type { RequestDetail } from "@/lib/requests-api";
 
 type Props = {
@@ -44,6 +44,8 @@ export function RequestDetailDialogs({
   approveSaving = false,
   reopenSaving = false,
 }: Props) {
+  const fieldTypeByKey = new Map(req.fieldAnswers.map((a) => [a.fieldKey, a.fieldType]));
+
   return (
     <>
       <Dialog
@@ -58,14 +60,14 @@ export function RequestDetailDialogs({
           ) : null}
           {req.missingInformation.map((m) =>
             m.fieldKey ? (
-              <div key={m.fieldKey} className="space-y-2">
-                <label className="text-sm font-medium">{m.label}</label>
-                <Input
-                  value={providedValues[m.fieldKey] ?? ""}
-                  onChange={(e) => setProvidedValues((p) => ({ ...p, [m.fieldKey!]: e.target.value }))}
-                  placeholder={`Enter: ${m.label}`}
-                />
-              </div>
+              <MissingInfoAnswerField
+                key={m.fieldKey}
+                fieldKey={m.fieldKey}
+                label={m.label}
+                fieldType={fieldTypeByKey.get(m.fieldKey)}
+                value={providedValues[m.fieldKey] ?? ""}
+                onChange={(value) => setProvidedValues((p) => ({ ...p, [m.fieldKey!]: value }))}
+              />
             ) : null,
           )}
         </div>

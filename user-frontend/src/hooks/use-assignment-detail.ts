@@ -13,7 +13,10 @@ import { apiErrorMessage } from "@/lib/api-error";
 
 export type MilestoneFormStatus = "TODO" | "IN_PROGRESS" | "BLOCKED" | "COMPLETED";
 
-export function useAssignmentDetail(assignmentId: string, userId: string | undefined) {
+export function useAssignmentDetail(
+  assignmentId: string | undefined,
+  userId: string | undefined,
+) {
   const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,18 +33,26 @@ export function useAssignmentDetail(assignmentId: string, userId: string | undef
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!assignmentId) {
+      setAssignment(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
 
+    const id = assignmentId;
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchAssignmentDetail(assignmentId);
+        const data = await fetchAssignmentDetail(id);
         if (cancelled) return;
         setAssignment(data);
       } catch {
         if (cancelled) return;
-        setError("Could not load this assignment.");
+        setError("Could not load team progress.");
         setAssignment(null);
       } finally {
         if (!cancelled) setLoading(false);

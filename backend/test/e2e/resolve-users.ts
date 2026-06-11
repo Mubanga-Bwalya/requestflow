@@ -3,7 +3,7 @@ import { EMAILS, SEED } from './seed-constants';
 
 export type ResolvedSeedUsers = {
   admin: string;
-  jane: string;
+  musaMkt: string;
   henryHr: string;
   maryMkt: string;
   helenHr: string;
@@ -12,7 +12,7 @@ export type ResolvedSeedUsers = {
 
 const EMAIL_KEYS = {
   admin: EMAILS.admin,
-  jane: EMAILS.jane,
+  musaMkt: EMAILS.musa,
   henryHr: EMAILS.henry,
   maryMkt: EMAILS.mary,
   helenHr: EMAILS.helen,
@@ -37,7 +37,7 @@ export async function resolveSeedUsers(
 
   return {
     admin: pick('admin', SEED.users.admin),
-    jane: pick('jane', SEED.users.jane),
+    musaMkt: pick('musaMkt', SEED.users.musaMkt),
     henryHr: pick('henryHr', SEED.users.henryHr),
     maryMkt: pick('maryMkt', SEED.users.maryMkt),
     helenHr: pick('helenHr', SEED.users.helenHr),

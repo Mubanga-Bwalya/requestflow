@@ -1,37 +1,49 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
 
-# Next.js
-.next/
-out/
-
-# Builds
+# Build outputs
 dist/
 build/
+.next/
+out/
+*.tsbuildinfo
+.prisma/
 
-# Env files
+# Environment (never commit secrets; keep examples)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!**/.env.example
 
 # Logs
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Coverage
-coverage/
-
-# OS / editor
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
 
-# Generated
-*.tsbuildinfo
-.prisma/
+# Test / coverage
+coverage/
+.nyc_output/
 
-# Extracted brand kit (source files live in public/brand)
+# Docker local data
+.docker-data/
+
+# Dev artifacts (do not commit)
 brand-assets-temp/
+backend/email-preview.html
+uploads/
 
+# AI tool state
+.cursor/
+.claude/

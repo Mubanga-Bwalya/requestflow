@@ -1,28 +1,19 @@
 # RequestFlow — Admin portal
 
-Configuration UI for RequestFlow (users, departments, templates, system settings, reports).
+Internal **admin** configuration UI (:3001) for users, departments, templates, settings, reports, and system logs.
 
-## Quick start
+**Documentation:** [`../README.md`](../README.md) · [`../docs/SETUP.md`](../docs/SETUP.md)
 
 ```bash
 cp .env.example .env.local
-npm install
-npm run dev
+npm run dev    # or: npm run dev:admin from repo root
 ```
 
-Open **http://localhost:3001**. Backend must run on **http://localhost:4000**.
+Login: `admin@requestflow.local` (dev, when demo hints enabled) — requires DB role **Admin** or **System Admin**.
 
-Login: `admin@requestflow.local` / password `requestflow`. Requires DB role **`Admin`** — see [`docs/LOCAL_RUN.md`](../docs/LOCAL_RUN.md).
+**Routes:** Dashboard, Users, Departments, Templates, Reports, **System Logs** (`/logs`), Settings.
 
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Dev server on port 3001 (webpack) |
-| `npm run dev:turbo` | Turbopack (faster; may fail under OneDrive) |
-| `npm run build` | Production build |
-| `npm run start` | Production server |
-
-## Agent handover
-
-[`AGENTS.md`](AGENTS.md) — file map, known fixes, scope.
+**UX notes:**
+- Non-admin users who reach the portal see an access-denied screen (backend still enforces via `AdminRoleGuard`).
+- API load failures show red error banners with Retry — not empty tables with zero rows.
+- Department managers are assigned manually per department on the edit form (not inferred from role name).

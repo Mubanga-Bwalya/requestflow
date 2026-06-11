@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { authHeader, loginJane } from './e2e/auth-helpers';
+import { authHeader, loginMusa } from './e2e/auth-helpers';
 import { EMAILS } from './e2e/seed-constants';
 import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
 
@@ -40,14 +40,14 @@ describe('API (e2e)', () => {
       return;
     }
 
-    const token = await loginJane(app);
+    const token = await loginMusa(app);
 
     await request(app.getHttpServer())
       .get('/auth/me')
       .set(authHeader(token))
       .expect(200)
       .expect((res) => {
-        expect(res.body.email).toBe(EMAILS.jane);
+        expect(res.body.email).toBe(EMAILS.musa);
       });
   });
 });

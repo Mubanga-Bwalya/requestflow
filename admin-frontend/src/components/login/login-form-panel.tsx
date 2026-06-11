@@ -26,7 +26,7 @@ export function LoginFormPanel({ children }: Props) {
         </div>
 
         <div className="mt-7 space-y-5">{children}</div>
-        <p className="mt-8 text-center text-xs text-zamtel-muted">© 2025 Zamtel. All rights reserved.</p>
+        <p className="mt-8 text-center text-xs text-zamtel-muted">© 2026 Zamtel. All rights reserved.</p>
       </div>
     </div>
   );

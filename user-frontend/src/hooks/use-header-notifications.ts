@@ -11,6 +11,7 @@ import {
 import {
   matchesRefreshScope,
   subscribeAppRefresh,
+  emitAppRefresh,
   type AppRefreshScope,
 } from "@/lib/app-refresh";
 import { NOTIFICATION_PAGE_SIZE } from "@/lib/page-size";
@@ -34,7 +35,11 @@ export function useHeaderNotifications(userId: string | undefined) {
     }
     invalidateApiCache("notifications:unread");
     try {
-      setUnreadCount(await fetchUnreadNotificationCount());
+      const count = await fetchUnreadNotificationCount();
+      setUnreadCount((prev) => {
+        if (count > prev) emitAppRefresh("requests");
+        return count;
+      });
     } catch {
       setUnreadCount(0);
     }

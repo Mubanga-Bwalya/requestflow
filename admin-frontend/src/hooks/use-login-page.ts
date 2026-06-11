@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { login, LoginError } from "@/lib/auth-api";
 import { useAuth } from "@/lib/auth-context";
 
+type Options = {
+  defaultEmail?: string;
+};
+
 type FieldErrors = {
   email?: string;
   password?: string;
@@ -27,7 +31,9 @@ function validateFields(email: string, password: string): FieldErrors {
   return errors;
 }
 
-export function useLoginPage(defaultEmail = "admin@requestflow.local") {
+export function useLoginPage(options: Options = {}) {
+  const { defaultEmail = "" } = options;
+
   const router = useRouter();
   const { state, actions } = useAuth();
   const [email, setEmail] = useState(defaultEmail);

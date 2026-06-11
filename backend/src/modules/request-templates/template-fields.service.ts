@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FieldType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateTemplateFieldDto } from './dto/create-template-field.dto';
 import type { UpdateTemplateFieldDto } from './dto/update-template-field.dto';
@@ -22,7 +22,7 @@ export class TemplateFieldsService {
     if (!template)
       throw new NotFoundException(`Request template not found: ${templateId}`);
 
-    const fieldType = dto.fieldType as FieldType;
+    const fieldType = dto.fieldType;
     assertOptionsForFieldType(fieldType, dto.options);
 
     const fieldKey = (
@@ -72,7 +72,7 @@ export class TemplateFieldsService {
     if (!field)
       throw new NotFoundException(`Template field not found: ${fieldId}`);
 
-    const nextFieldType = (dto.fieldType ?? field.fieldType) as FieldType;
+    const nextFieldType = dto.fieldType ?? field.fieldType;
     if (dto.options !== undefined || dto.fieldType !== undefined) {
       assertOptionsForFieldType(
         nextFieldType,
@@ -97,13 +97,9 @@ export class TemplateFieldsService {
         ...(dto.fieldKey !== undefined
           ? { fieldKey: dto.fieldKey.trim().toLowerCase() }
           : {}),
-        ...(dto.fieldType !== undefined
-          ? { fieldType: dto.fieldType as FieldType }
-          : {}),
+        ...(dto.fieldType !== undefined ? { fieldType: dto.fieldType } : {}),
         ...(dto.isRequired !== undefined ? { isRequired: dto.isRequired } : {}),
-        ...(dto.options !== undefined
-          ? { options: dto.options as Prisma.InputJsonValue }
-          : {}),
+        ...(dto.options !== undefined ? { options: dto.options } : {}),
         ...(dto.helpText !== undefined
           ? { helpText: dto.helpText?.trim() || null }
           : {}),

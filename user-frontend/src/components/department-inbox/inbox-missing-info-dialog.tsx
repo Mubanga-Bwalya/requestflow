@@ -6,12 +6,12 @@ import { Dialog } from "@/components/ui/dialog";
 import { apiErrorMessage } from "@/lib/api-error";
 import { fetchRequestDetail, requestMissingInformation } from "@/lib/requests-api";
 import { fetchTemplateFields } from "@/lib/templates-api";
-import type { RequestItem } from "@/types/request";
+import type { InboxRequestRef } from "@/lib/inbox-request-ref";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selected: RequestItem | null;
+  selected: InboxRequestRef | null;
   userId: string | undefined;
   onReload: () => Promise<void>;
 };
@@ -46,7 +46,10 @@ export function InboxMissingInfoDialog({ open, onOpenChange, selected, userId, o
           setTemplateFieldOptions(detail.fieldAnswers.map((a) => ({ key: a.fieldKey, label: a.label })));
         }
       } catch {
-        if (!cancelled) setTemplateFieldOptions([]);
+        if (!cancelled) {
+          setTemplateFieldOptions([]);
+          setInfoError("Could not load form fields for this request. Try again or contact support.");
+        }
       } finally {
         if (!cancelled) setFieldsLoading(false);
       }

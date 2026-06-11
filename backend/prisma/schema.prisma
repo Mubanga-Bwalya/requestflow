@@ -112,6 +112,9 @@ enum ActivityAction {
   MILESTONE_UPDATED
   ATTACHMENT_UPLOADED
   NOTIFICATION_CREATED
+  USER_SIGNED_IN
+  ADMIN_USER_CHANGED
+  ADMIN_SETTINGS_CHANGED
 
   @@map("activity_action")
 }
@@ -127,7 +130,7 @@ model Department {
   id                     String   @id @default(uuid()) @db.Uuid
   name                   String   @unique
   description            String?
-  managerUserId          String?  @unique @map("manager_user_id") @db.Uuid
+  managerUserId          String?  @map("manager_user_id") @db.Uuid
   externalDepartmentCode String?  @map("external_department_code")
   isActive               Boolean  @default(true) @map("is_active")
   createdAt              DateTime @default(now()) @map("created_at")
@@ -172,7 +175,7 @@ model User {
 
   department              Department?  @relation("DepartmentUsers", fields: [departmentId], references: [id], onDelete: SetNull)
   role                    Role?        @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  managedDepartment       Department?  @relation("DepartmentManager")
+  managedDepartments      Department[] @relation("DepartmentManager")
   createdRequests         Request[]    @relation("CreatedByUser")
   assignedAssignments     Assignment[] @relation("AssignedByUser")
   assignmentMemberships   AssignmentMember[]

@@ -8,7 +8,7 @@ import {
   loginAdmin,
   loginHelen,
   loginHenry,
-  loginJane,
+  loginMusa,
   loginMary,
 } from './e2e/auth-helpers';
 import { closeE2eApp, createE2eApp, isDatabaseReady } from './e2e/create-app';
@@ -29,7 +29,7 @@ describe('Security and workflow regression (e2e)', () => {
     dbReady = await isDatabaseReady(prisma);
     if (dbReady) {
       try {
-        await loginJane(app);
+        await loginMusa(app);
         users = await resolveSeedUsers(prisma);
       } catch {
         dbReady = false;
@@ -49,10 +49,10 @@ describe('Security and workflow regression (e2e)', () => {
     it('POST provide-information — non-requester returns 403', async () => {
       if (skipIfNoDb()) return;
 
-      const janeToken = await loginJane(app);
+      const musaToken = await loginMusa(app);
       const henryToken = await loginHenry(app);
       const helenToken = await loginHelen(app);
-      const requestId = await createSubmittedHrRequest(app, janeToken, 'Provide authz');
+      const requestId = await createSubmittedHrRequest(app, musaToken, 'Provide authz');
 
       await request(app.getHttpServer())
         .post(`/requests/${requestId}/request-missing-information`)
@@ -70,12 +70,12 @@ describe('Security and workflow regression (e2e)', () => {
     it('PATCH request status — requester APPROVED before reviewable returns 400', async () => {
       if (skipIfNoDb()) return;
 
-      const janeToken = await loginJane(app);
-      const requestId = await createSubmittedHrRequest(app, janeToken, 'Early approve');
+      const musaToken = await loginMusa(app);
+      const requestId = await createSubmittedHrRequest(app, musaToken, 'Early approve');
 
       await request(app.getHttpServer())
         .patch(`/requests/${requestId}/status`)
-        .set(authHeader(janeToken))
+        .set(authHeader(musaToken))
         .send({ status: 'APPROVED' })
         .expect(400);
     });
@@ -83,9 +83,9 @@ describe('Security and workflow regression (e2e)', () => {
     it('PATCH request status — wrong-department manager ACCEPT returns 403', async () => {
       if (skipIfNoDb()) return;
 
-      const janeToken = await loginJane(app);
+      const musaToken = await loginMusa(app);
       const maryToken = await loginMary(app);
-      const requestId = await createSubmittedHrRequest(app, janeToken, 'Wrong dept manager');
+      const requestId = await createSubmittedHrRequest(app, musaToken, 'Wrong dept manager');
 
       await request(app.getHttpServer())
         .patch(`/requests/${requestId}/status`)
@@ -97,9 +97,9 @@ describe('Security and workflow regression (e2e)', () => {
     it('POST /assignments — non-manager returns 403', async () => {
       if (skipIfNoDb()) return;
 
-      const janeToken = await loginJane(app);
+      const musaToken = await loginMusa(app);
       const henryToken = await loginHenry(app);
-      const requestId = await createSubmittedHrRequest(app, janeToken, 'Assign authz');
+      const requestId = await createSubmittedHrRequest(app, musaToken, 'Assign authz');
 
       await request(app.getHttpServer())
         .patch(`/requests/${requestId}/status`)
@@ -109,7 +109,7 @@ describe('Security and workflow regression (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/assignments')
-        .set(authHeader(janeToken))
+        .set(authHeader(musaToken))
         .send({
           requestId,
           memberUserIds: [users.helenHr],
@@ -132,9 +132,9 @@ describe('Security and workflow regression (e2e)', () => {
     it('PATCH /notifications/:id/read — cannot mark another user notification', async () => {
       if (skipIfNoDb()) return;
 
-      const janeToken = await loginJane(app);
+      const musaToken = await loginMusa(app);
       const helenToken = await loginHelen(app);
-      const requestId = await createSubmittedHrRequest(app, janeToken, 'Notification isolation');
+      const requestId = await createSubmittedHrRequest(app, musaToken, 'Notification isolation');
 
       const notification = await prisma.notification.create({
         data: {
@@ -148,7 +148,7 @@ describe('Security and workflow regression (e2e)', () => {
 
       await request(app.getHttpServer())
         .patch(`/notifications/${notification.id}/read`)
-        .set(authHeader(janeToken))
+        .set(authHeader(musaToken))
         .expect(404);
 
       const row = await prisma.notification.findUnique({ where: { id: notification.id } });
@@ -230,8 +230,8 @@ describe('Security and workflow regression (e2e)', () => {
       if (skipIfNoDb()) return;
 
       const henryToken = await loginHenry(app);
-      const janeToken = await loginJane(app);
-      const requestId = await createSubmittedHrRequest(app, janeToken, 'Validation');
+      const musaToken = await loginMusa(app);
+      const requestId = await createSubmittedHrRequest(app, musaToken, 'Validation');
 
       await request(app.getHttpServer())
         .post('/assignments')
@@ -261,11 +261,11 @@ describe('Security and workflow regression (e2e)', () => {
     it('rejects invalid create-request templateId', async () => {
       if (skipIfNoDb()) return;
 
-      const janeToken = await loginJane(app);
+      const musaToken = await loginMusa(app);
 
       await request(app.getHttpServer())
         .post('/requests')
-        .set(authHeader(janeToken))
+        .set(authHeader(musaToken))
         .send({
           targetDepartmentName: 'HR',
           templateId: 'not-a-uuid',

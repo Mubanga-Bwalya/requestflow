@@ -22,6 +22,7 @@ export function useAdminTemplates() {
   const [createForm, setCreateForm] = useState({ departmentId: "", name: "", description: "" });
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDepartments(false)
@@ -41,6 +42,7 @@ export function useAdminTemplates() {
     } else {
       setLoading(true);
     }
+    setLoadError(null);
     try {
       setResult(
         await fetchTemplates({
@@ -50,8 +52,11 @@ export function useAdminTemplates() {
           departmentId: deptId,
         }),
       );
-    } catch {
-      if (!cached) setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+    } catch (e) {
+      if (!cached) {
+        setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+        setLoadError(apiErrorMessage(e, "Could not load templates. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -69,6 +74,7 @@ export function useAdminTemplates() {
       setLoading(true);
     }
 
+    setLoadError(null);
     void (async () => {
       try {
         const data = await fetchTemplates({
@@ -78,9 +84,10 @@ export function useAdminTemplates() {
           departmentId: deptId,
         });
         if (!cancelled) setResult(data);
-      } catch {
+      } catch (e) {
         if (!cancelled && !cached) {
           setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+          setLoadError(apiErrorMessage(e, "Could not load templates. Please try again."));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -171,5 +178,6 @@ export function useAdminTemplates() {
     openCreate,
     submitCreate,
     reload,
+    loadError,
   };
 }

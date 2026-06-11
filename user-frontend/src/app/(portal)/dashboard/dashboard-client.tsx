@@ -5,17 +5,22 @@ import { ClipboardList, Inbox, List, MessageCircleWarning } from "lucide-react";
 import { DashboardNextStepsPanel } from "@/components/dashboard/dashboard-next-steps-panel";
 import { DashboardRecentRequests, DashboardShortcuts } from "@/components/dashboard/dashboard-sidebar-panels";
 import { DashboardStatSkeletons, StatChip } from "@/components/dashboard/dashboard-stat-chips";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { PageHeader } from "@/components/shared/page-header";
 import { ButtonLink } from "@/components/ui/button-link";
 import { useUserWorkspace } from "@/hooks/use-user-workspace";
 import { buildNextSteps } from "@/lib/dashboard-next-steps";
 import { useAuth } from "@/lib/auth-context";
-import { isManagerRole } from "@/lib/role-utils";
+import { hasManagerInbox, resolveInboxDepartment } from "@/lib/role-utils";
 
 export function DashboardClient() {
   const { state } = useAuth();
-  const isManager = isManagerRole(state.auth.role);
-  const ws = useUserWorkspace(state.auth.userId, state.auth.departmentName, isManager);
+  const isManager = hasManagerInbox(state.auth);
+  const ws = useUserWorkspace(
+    state.auth.userId,
+    isManager ? resolveInboxDepartment(state.auth) : null,
+    isManager,
+  );
 
   const nextSteps = useMemo(
     () => buildNextSteps(ws.requests, ws.assignments, ws.inbox, isManager),
@@ -38,7 +43,9 @@ export function DashboardClient() {
 
   const description = ws.loading
     ? "Loading your overview…"
-    : actionCount > 0
+    : ws.error
+      ? "Some dashboard data could not be loaded."
+      : actionCount > 0
       ? `You have ${actionCount} item${actionCount === 1 ? "" : "s"} waiting on you.`
       : "You're caught up — here's a quick snapshot of your work.";
 
@@ -51,6 +58,7 @@ export function DashboardClient() {
       />
 
       <div className="space-y-5">
+        <ApiErrorBanner message={ws.error} onRetry={() => void ws.reload()} />
         <div className={`grid gap-3 ${isManager ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
           {ws.loading ? (
             <DashboardStatSkeletons count={isManager ? 4 : 3} />

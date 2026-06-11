@@ -6,7 +6,10 @@ import {
   parseListTab,
   requestStatusesForTab,
 } from '../../common/list-tab-filters';
-import { paginatedResult, resolveListPagination } from '../../common/pagination';
+import {
+  paginatedResult,
+  resolveListPagination,
+} from '../../common/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   mapRequestListItem,
@@ -110,8 +113,12 @@ export class RequestsQueryService {
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
-        assignment: { select: { progressPercentage: true } },
-        activityLogs: { orderBy: { createdAt: 'asc' }, take: 100 },
+        assignment: { select: { id: true, progressPercentage: true } },
+        activityLogs: {
+          orderBy: { createdAt: 'asc' },
+          take: 100,
+          select: { description: true, action: true },
+        },
       },
     });
 
@@ -136,6 +143,7 @@ export class RequestsQueryService {
       status: row.status,
       priority: row.priority,
       progress: row.assignment?.progressPercentage ?? row.progressPercentage,
+      assignmentId: row.assignment?.id ?? null,
       deadline: row.deadline ? row.deadline.toISOString().slice(0, 10) : null,
       currentStage: row.currentStage,
       actionNeeded: requestActionNeeded(row.status, missingFields.length > 0),
@@ -150,7 +158,10 @@ export class RequestsQueryService {
       })),
       missingInformation: missingFields,
       openMissingRequestId: openMissing?.id ?? null,
-      activity: row.activityLogs.map((l) => l.description),
+      activity: row.activityLogs.map((l) => ({
+        description: l.description,
+        action: l.action,
+      })),
     };
   }
 }

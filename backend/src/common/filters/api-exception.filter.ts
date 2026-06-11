@@ -12,6 +12,7 @@ import {
   isServerErrorStatus,
   normalizeExceptionMessage,
 } from '../api-error-body';
+import { shouldRecordHttpWarning } from '../system-events/should-record-http-event';
 import { SystemEventsService } from '../system-events/system-events.service';
 import type { RequestUser } from '../auth.types';
 
@@ -24,7 +25,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
-    const req = ctx.getRequest<Request & { user?: RequestUser; requestId?: string }>();
+    const req = ctx.getRequest<
+      Request & { user?: RequestUser; requestId?: string }
+    >();
     const requestId = req.requestId;
 
     if (exception instanceof HttpException) {
@@ -44,6 +47,18 @@ export class ApiExceptionFilter implements ExceptionFilter {
           requestId,
           context: { errors },
         });
+      } else if (shouldRecordHttpWarning(status, req.url)) {
+        void this.systemEvents.record({
+          level: 'WARN',
+          code: `HTTP_${status}`,
+          message,
+          httpMethod: req.method,
+          path: req.url,
+          statusCode: status,
+          userId: req.user?.id,
+          requestId,
+          context: errors?.length ? { errors } : undefined,
+        });
       }
 
       res.status(status).json(body);
@@ -62,7 +77,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     void this.systemEvents.record({
       level: 'ERROR',
       code: 'UNHANDLED',
-      message: exception instanceof Error ? exception.message : String(exception),
+      message:
+        exception instanceof Error ? exception.message : String(exception),
       httpMethod: req.method,
       path: req.url,
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

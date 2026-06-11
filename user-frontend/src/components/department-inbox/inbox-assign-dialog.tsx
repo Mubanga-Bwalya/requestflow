@@ -9,12 +9,12 @@ import { apiErrorMessage } from "@/lib/api-error";
 import { isValidUuid } from "@/lib/assignment-form-utils";
 import { createAssignment } from "@/lib/assignments-api";
 import { fetchDepartmentUsers, type DepartmentUser } from "@/lib/users-api";
-import type { RequestItem } from "@/types/request";
+import type { InboxRequestRef } from "@/lib/inbox-request-ref";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selected: RequestItem | null;
+  selected: InboxRequestRef | null;
   dept: string | null | undefined;
   userId: string | undefined;
   onReload: () => Promise<void>;
@@ -76,7 +76,11 @@ export function InboxAssignDialog({ open, onOpenChange, selected, dept, userId, 
   }, [open, selected]);
 
   async function handleAssign() {
-    if (!userId || !selected || !canCreateAssignment) return;
+    if (!userId || !selected) return;
+    if (!canCreateAssignment) {
+      setMembersError("Select at least one team member or include yourself.");
+      return;
+    }
 
     const invalidMember = assignmentMemberIds.find((id) => !isValidUuid(id));
     if (invalidMember) {

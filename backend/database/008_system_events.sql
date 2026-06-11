@@ -1,8 +1,12 @@
 -- Operational / error events for admin debugging (apply after 001 on database requestflow).
+-- Idempotent: safe to re-run.
 
-CREATE TYPE system_event_level AS ENUM ('WARN', 'ERROR');
+DO $$ BEGIN
+  CREATE TYPE system_event_level AS ENUM ('WARN', 'ERROR');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE system_events (
+CREATE TABLE IF NOT EXISTS system_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   level system_event_level NOT NULL,
   code VARCHAR(64) NOT NULL,
@@ -16,4 +20,4 @@ CREATE TABLE system_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_system_events_created_at ON system_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_system_events_created_at ON system_events (created_at DESC);

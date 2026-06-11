@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, RequestStatus, SystemEventLevel } from '@prisma/client';
+import { Prisma, RequestStatus } from '@prisma/client';
 import { CacheKeys, CacheTtl } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
-import { parsePagination } from '../../common/pagination';
+import { paginatedResult, parsePagination } from '../../common/pagination';
 import { SystemEventsService } from '../../common/system-events/system-events.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AdminReportsService } from './admin-reports.service';
+import { FrontendDiagnosticsService } from '../../common/diagnostics/frontend-diagnostics.service';
+import type { ClientEventDto } from '../../common/diagnostics/client-event.dto';
 
 const TERMINAL_STATUSES: RequestStatus[] = [
   'APPROVED',
@@ -24,7 +27,6 @@ const ACTIVE_STATUSES: RequestStatus[] = [
 
 type StatsPayload = {
   summary: { label: string; value: string }[];
-  reports: { label: string; value: string }[];
 };
 
 @Injectable()
@@ -33,6 +35,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly systemEvents: SystemEventsService,
     private readonly cache: CacheService,
+    private readonly reports: AdminReportsService,
+    private readonly diagnostics: FrontendDiagnosticsService,
   ) {}
 
   private requestWhere(departmentName?: string): Prisma.RequestWhereInput {
@@ -57,7 +61,6 @@ export class AdminService {
       activeRequests,
       completedRequests,
       overdueRequests,
-      statusGroups,
     ] = await Promise.all([
       this.prisma.user.count({ where: { isActive: true } }),
       this.prisma.department.count({ where: { isActive: true } }),
@@ -75,62 +78,7 @@ export class AdminService {
           status: { notIn: TERMINAL_STATUSES },
         },
       }),
-      this.prisma.request.groupBy({
-        by: ['status'],
-        where: baseWhere,
-        _count: { _all: true },
-      }),
     ]);
-
-    const byStatus = Object.fromEntries(
-      statusGroups.map((g) => [g.status, g._count._all]),
-    ) as Record<string, number>;
-
-    const inProgress =
-      (byStatus['IN_PROGRESS'] ?? 0) + (byStatus['ASSIGNED'] ?? 0);
-    const needsInfo = byStatus['NEEDS_INFORMATION'] ?? 0;
-
-    const progressAgg = await this.prisma.request.aggregate({
-      where: baseWhere,
-      _avg: { progressPercentage: true },
-      _count: { _all: true },
-    });
-    const avgProgress =
-      progressAgg._count._all > 0 && progressAgg._avg.progressPercentage != null
-        ? Math.round(progressAgg._avg.progressPercentage)
-        : 0;
-
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const completedThisMonth = await this.prisma.request.count({
-      where: {
-        ...baseWhere,
-        status: { in: ['COMPLETED', 'APPROVED'] },
-        completedAt: { gte: monthStart },
-      },
-    });
-
-    let deptBreakdown = '';
-    if (!departmentName || departmentName === 'ALL') {
-      const [depts, deptCounts] = await Promise.all([
-        this.prisma.department.findMany({
-          where: { isActive: true },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
-        }),
-        this.prisma.request.groupBy({
-          by: ['targetDepartmentId'],
-          _count: { _all: true },
-        }),
-      ]);
-      const countByDeptId = new Map(
-        deptCounts.map((g) => [g.targetDepartmentId, g._count._all]),
-      );
-      const counts = depts.map((d) => countByDeptId.get(d.id) ?? 0);
-      const total = counts.reduce((a, b) => a + b, 0) || 1;
-      deptBreakdown = depts
-        .map((d, i) => `${d.name} ${Math.round((counts[i] / total) * 100)}%`)
-        .join(' | ');
-    }
 
     return {
       summary: [
@@ -140,22 +88,6 @@ export class AdminService {
         { label: 'Completed Requests', value: String(completedRequests) },
         { label: 'Overdue Requests', value: String(overdueRequests) },
         { label: 'Templates Configured', value: String(activeTemplates) },
-      ],
-      reports: [
-        {
-          label: 'Requests by Department',
-          value:
-            departmentName && departmentName !== 'ALL'
-              ? `${departmentName} 100%`
-              : deptBreakdown || '—',
-        },
-        {
-          label: 'Requests by Status',
-          value: `In Progress ${inProgress} | Needs Info ${needsInfo}`,
-        },
-        { label: 'Average Progress', value: `${avgProgress}%` },
-        { label: 'Completed This Month', value: String(completedThisMonth) },
-        { label: 'Overdue Requests', value: String(overdueRequests) },
       ],
     };
   }
@@ -170,28 +102,6 @@ export class AdminService {
     return stats;
   }
 
-  private async getCachedReportStats(
-    departmentName?: string,
-  ): Promise<StatsPayload['reports']> {
-    const deptKey =
-      departmentName && departmentName !== 'ALL' ? departmentName : 'ALL';
-    const cacheKey = CacheKeys.adminReports(deptKey);
-    const cached = await this.cache.getJson<{ cards: StatsPayload['reports'] }>(
-      cacheKey,
-    );
-    if (cached) return cached.cards;
-
-    const stats = await this.buildStats(
-      deptKey === 'ALL' ? undefined : deptKey,
-    );
-    await this.cache.setJson(
-      cacheKey,
-      { cards: stats.reports },
-      CacheTtl.adminSummarySeconds,
-    );
-    return stats.reports;
-  }
-
   async getDashboard(activityLimit?: number) {
     const stats = await this.getCachedDashboardStats();
     if (!activityLimit) return { summary: stats.summary };
@@ -199,9 +109,12 @@ export class AdminService {
     return { summary: stats.summary, activity };
   }
 
-  async getReports(departmentName?: string) {
-    const cards = await this.getCachedReportStats(departmentName);
-    return { cards };
+  getReports(departmentName?: string) {
+    return this.reports.getReports(departmentName);
+  }
+
+  recordClientEvent(actorId: string, dto: ClientEventDto) {
+    return this.diagnostics.record(dto, actorId);
   }
 
   async getSystemEvents(
@@ -211,10 +124,27 @@ export class AdminService {
   ) {
     const pagination = parsePagination(pageRaw, limitRaw);
     const level =
-      levelRaw === 'ERROR' || levelRaw === 'WARN'
-        ? (levelRaw as SystemEventLevel)
-        : undefined;
+      levelRaw === 'ERROR' || levelRaw === 'WARN' ? levelRaw : undefined;
     return this.systemEvents.listPaginated(pagination, level);
+  }
+
+  private mapActivityRow(
+    r: Prisma.ActivityLogGetPayload<{
+      include: {
+        request: { select: { requestNumber: true } };
+        user: { select: { fullName: true; email: true } };
+      };
+    }>,
+  ) {
+    return {
+      id: r.id,
+      action: r.action,
+      description: r.description,
+      createdAt: r.createdAt.toISOString(),
+      requestNumber: r.request?.requestNumber ?? null,
+      userName: r.user?.fullName ?? null,
+      userEmail: r.user?.email ?? null,
+    };
   }
 
   async getActivity(limit = 10) {
@@ -223,15 +153,30 @@ export class AdminService {
       take: Math.min(Math.max(limit, 1), 50),
       include: {
         request: { select: { requestNumber: true } },
-        user: { select: { fullName: true } },
+        user: { select: { fullName: true, email: true } },
       },
     });
-    return rows.map((r) => ({
-      id: r.id,
-      description: r.description,
-      createdAt: r.createdAt.toISOString(),
-      requestNumber: r.request?.requestNumber ?? null,
-      userName: r.user?.fullName ?? null,
-    }));
+    return rows.map((r) => this.mapActivityRow(r));
+  }
+
+  async getActivityPaginated(pageRaw?: string, limitRaw?: string) {
+    const pagination = parsePagination(pageRaw, limitRaw);
+    const [total, rows] = await Promise.all([
+      this.prisma.activityLog.count(),
+      this.prisma.activityLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+        include: {
+          request: { select: { requestNumber: true } },
+          user: { select: { fullName: true, email: true } },
+        },
+      }),
+    ]);
+    return paginatedResult(
+      rows.map((r) => this.mapActivityRow(r)),
+      total,
+      pagination,
+    );
   }
 }

@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { CacheKeys, CacheTtl } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
+import { loadManagedDepartments } from '../../common/department-manager';
 import { resolveJwtSecret } from '../../config/jwt-secret';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { JwtPayload, RequestUser } from '../../common/auth.types';
@@ -36,26 +37,39 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         roleName: cached.roleName,
         departmentName: cached.departmentName,
         departmentId: cached.departmentId,
+        inboxDepartmentName: cached.inboxDepartmentName,
+        managedDepartmentIds: cached.managedDepartmentIds,
+        managedDepartmentNames: cached.managedDepartmentNames,
       };
     }
 
-    const user = await this.prisma.user.findFirst({
-      where: { id: payload.sub, isActive: true },
-      include: {
-        department: { select: { id: true, name: true } },
-        role: { select: { id: true, name: true } },
-      },
-    });
+    const [user, managed] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: payload.sub, isActive: true },
+        include: {
+          department: { select: { id: true, name: true } },
+          role: { select: { id: true, name: true } },
+        },
+      }),
+      loadManagedDepartments(this.prisma, payload.sub),
+    ]);
     if (!user) {
       throw new UnauthorizedException();
     }
 
+    const roleName = user.role?.name ?? null;
+    const departmentName = user.department?.name ?? null;
+    const inboxDepartmentName = managed.names[0] ?? null;
+
     const requestUser: RequestUser = {
       id: user.id,
       email: user.email,
-      roleName: user.role?.name ?? null,
-      departmentName: user.department?.name ?? null,
+      roleName,
+      departmentName,
       departmentId: user.department?.id ?? null,
+      inboxDepartmentName,
+      managedDepartmentIds: managed.ids,
+      managedDepartmentNames: managed.names,
     };
 
     await this.cache.setJson(

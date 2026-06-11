@@ -44,7 +44,8 @@ export function TemplateField({
         <label className="text-sm font-medium">
           {f.label} {f.required ? "*" : ""}
         </label>
-        <Textarea value={v} placeholder={f.placeholder} onChange={(e) => onChange(f.key, e.target.value)} />
+        <Textarea value={v} onChange={(e) => onChange(f.key, e.target.value)} />
+        <FieldHelp text={f.helpText} />
         <FieldError message={error} />
       </div>
     );
@@ -65,6 +66,7 @@ export function TemplateField({
             ))}
           </Select>
         </div>
+        <FieldHelp text={f.helpText} />
         <FieldError message={error} />
       </div>
     );
@@ -90,6 +92,7 @@ export function TemplateField({
             </option>
           ))}
         </Select>
+        <FieldHelp text={f.helpText} />
         <p className="mt-1 text-xs text-slate-500">Hold Ctrl (Windows) to select multiple.</p>
         <FieldError message={error} />
       </div>
@@ -104,7 +107,9 @@ export function TemplateField({
         <div className="mt-1">
           <DateInput value={v} onChange={(e) => onChange(f.key, e.target.value)} />
         </div>
-        <FieldHelp text={f.placeholder ?? "Use the date this request should be completed or actioned by."} />
+        <FieldHelp
+          text={f.helpText ?? "Use the date this request should be completed or actioned by."}
+        />
         <FieldError message={error} />
       </div>
     );
@@ -123,7 +128,9 @@ export function TemplateField({
         <label className="text-sm font-medium">
           {f.label} {f.required ? "*" : ""}
         </label>
-        <p className="text-xs text-slate-500">Filename only (MVP). Max {fileUploadLimitMb} MB per admin settings.</p>
+        <FieldHelp
+          text={f.helpText ?? `Filename only (MVP). Max ${fileUploadLimitMb} MB per admin settings.`}
+        />
         <Input
           type="file"
           onChange={(e) => {
@@ -143,20 +150,26 @@ export function TemplateField({
         <label className="text-sm font-medium">
           {f.label} {f.required ? "*" : ""}
         </label>
-        <Input type="number" value={v} placeholder={f.placeholder} onChange={(e) => onChange(f.key, e.target.value)} />
+        <Input type="number" value={v} onChange={(e) => onChange(f.key, e.target.value)} />
+        <FieldHelp text={f.helpText} />
         <FieldError message={error} />
       </div>
     );
   }
   if (f.type === "CHECKBOX") {
     return (
-      <div key={f.key} className="flex items-center gap-2 pt-6">
-        <input
-          type="checkbox"
-          checked={v === "true"}
-          onChange={(e) => onChange(f.key, e.target.checked ? "true" : "")}
-        />
-        <label className="text-sm font-medium">{f.label}</label>
+      <div key={f.key} className="pt-6">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={v === "true"}
+            onChange={(e) => onChange(f.key, e.target.checked ? "true" : "")}
+          />
+          <label className="text-sm font-medium">
+            {f.label} {f.required ? "*" : ""}
+          </label>
+        </div>
+        <FieldHelp text={f.helpText} />
         <FieldError message={error} />
       </div>
     );
@@ -168,7 +181,7 @@ export function TemplateField({
           {f.label} {f.required ? "*" : ""}
         </label>
         <Input type="email" value={v} onChange={(e) => onChange(f.key, e.target.value)} />
-        <FieldHelp text={f.placeholder} />
+        <FieldHelp text={f.helpText} />
         <FieldError message={error} />
       </div>
     );
@@ -178,7 +191,8 @@ export function TemplateField({
       <label className="text-sm font-medium">
         {f.label} {f.required ? "*" : ""}
       </label>
-      <Input value={v} placeholder={f.placeholder} onChange={(e) => onChange(f.key, e.target.value)} />
+      <Input value={v} onChange={(e) => onChange(f.key, e.target.value)} />
+      <FieldHelp text={f.helpText} />
       <FieldError message={error} />
     </div>
   );

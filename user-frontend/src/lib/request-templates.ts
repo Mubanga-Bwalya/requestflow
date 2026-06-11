@@ -18,7 +18,7 @@ export type RequestFieldDef = {
   type: RequestFieldType;
   required?: boolean;
   options?: string[];
-  placeholder?: string;
+  helpText?: string;
 };
 
 export type RequestTypeDef = {

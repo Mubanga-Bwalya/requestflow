@@ -5,9 +5,9 @@
 -- Run while connected to database `requestflow`.
 --
 -- Typical local reset:
---   psql -U postgres -d requestflow -f 003_drop_all.sql
---   psql -U postgres -d requestflow -f 001_create_schema.sql
---   psql -U postgres -d requestflow -f 002_seed_core_data.sql
+--   psql -U postgres -d requestflow -f backend/database/003_drop_all.sql
+--   bash backend/database/apply-migrations.sh
+--   cd backend && npm run db:seed
 -- =============================================================================
 
 -- Drop tables (reverse dependency order)
@@ -23,6 +23,9 @@ DROP TABLE IF EXISTS request_field_answers CASCADE;
 DROP TABLE IF EXISTS requests CASCADE;
 DROP TABLE IF EXISTS template_fields CASCADE;
 DROP TABLE IF EXISTS request_templates CASCADE;
+DROP TABLE IF EXISTS system_events CASCADE;
+DROP TABLE IF EXISTS system_settings CASCADE;
+DROP TABLE IF EXISTS request_number_sequences CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS departments CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
@@ -31,6 +34,7 @@ DROP TABLE IF EXISTS roles CASCADE;
 DROP FUNCTION IF EXISTS set_updated_at() CASCADE;
 
 -- Drop enum types
+DROP TYPE IF EXISTS system_event_level CASCADE;
 DROP TYPE IF EXISTS activity_action CASCADE;
 DROP TYPE IF EXISTS notification_type CASCADE;
 DROP TYPE IF EXISTS missing_information_status CASCADE;

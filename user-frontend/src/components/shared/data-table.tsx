@@ -6,12 +6,21 @@ import { Table, Td, Th } from "@/components/ui/table";
 export type DataTableColumn = { key: string; label: string };
 export type DataTableRow = Record<string, string | number | ReactNode>;
 
-export function DataTable({ columns, rows }: { columns: DataTableColumn[]; rows: DataTableRow[] }) {
+export function DataTable({
+  columns,
+  rows,
+  caption,
+}: {
+  columns: DataTableColumn[];
+  rows: DataTableRow[];
+  caption?: string;
+}) {
   return (
     <>
       <DataTableMobileList columns={columns} rows={rows} />
       <div className="hidden md:block">
         <Table>
+          {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>
             <tr>
               {columns.map((c) => (

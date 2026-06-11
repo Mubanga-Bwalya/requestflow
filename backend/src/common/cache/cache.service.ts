@@ -1,13 +1,21 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 import { resolveRedisConfig } from '../../config/redis';
+import { SystemEventsService } from '../system-events/system-events.service';
 
 @Injectable()
-export class CacheService implements OnModuleDestroy {
+export class CacheService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CacheService.name);
   private readonly config = resolveRedisConfig();
   private client: Redis | null = null;
   private connectFailed = false;
+
+  constructor(private readonly systemEvents: SystemEventsService) {}
 
   isEnabled(): boolean {
     return this.config.enabled && !this.connectFailed;
@@ -28,18 +36,28 @@ export class CacheService implements OnModuleDestroy {
         enableOfflineQueue: false,
         connectTimeout: 2000,
       });
-      this.client.on('error', (err) => {
-        if (process.env.NODE_ENV !== 'production') {
-          this.logger.warn(`Redis error: ${err.message}`);
-        }
+      this.client.on('error', () => {
+        /* markUnavailable logs once; ioredis may emit many errors while reconnecting */
       });
       return this.client;
-    } catch (err) {
+    } catch {
       this.connectFailed = true;
       if (process.env.NODE_ENV !== 'production') {
         this.logger.warn('Redis client init failed — using PostgreSQL only.');
       }
       return null;
+    }
+  }
+
+  async onModuleInit() {
+    if (!this.config.enabled) return;
+    const redis = this.getClient();
+    if (!redis) return;
+    try {
+      if (redis.status !== 'ready') await redis.connect();
+      await redis.ping();
+    } catch (err) {
+      this.markUnavailable(err);
     }
   }
 
@@ -69,7 +87,11 @@ export class CacheService implements OnModuleDestroy {
     }
   }
 
-  async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  async setJson(
+    key: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
     const redis = this.getClient();
     if (!redis) return;
     try {
@@ -117,10 +139,16 @@ export class CacheService implements OnModuleDestroy {
   }
 
   private markUnavailable(err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (process.env.NODE_ENV !== 'production') {
-      const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Redis unavailable — fallback to DB (${msg})`);
     }
+    void this.systemEvents.recordIfNotRecent({
+      level: 'WARN',
+      code: 'REDIS_UNAVAILABLE',
+      message: `Redis cache unavailable; API is using PostgreSQL only (${msg}).`,
+      path: '/cache',
+    });
     this.connectFailed = true;
     void this.client?.quit().catch(() => undefined);
     this.client = null;

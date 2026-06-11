@@ -1,0 +1,38 @@
+# RequestFlow — local dev stack (Postgres + optional Redis)
+#
+# Usage:
+#   npm run docker:up
+#   npm run docker:logs
+#   npm run docker:down
+#
+# Or: docker compose -f docker/docker-compose.yml up -d
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: requestflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: requestflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d requestflow']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: requestflow-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+
+volumes:
+  postgres_data:
+    name: requestflow_postgres_data

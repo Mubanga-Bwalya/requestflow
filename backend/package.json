@@ -9,7 +9,7 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "nest start --watch --port 4000",
+    "start:dev": "npm run build && nest start --watch --port 4000",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
@@ -23,7 +23,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:security": "jest --config ./test/jest-e2e.json --testPathPatterns=security",
     "hash-passwords": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/hash-demo-passwords.ts",
-    "cleanup-dev-requests": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/cleanup-dev-requests.ts"
+    "cleanup-dev-requests": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/cleanup-dev-requests.ts",
+    "db:seed": "ts-node --project prisma/tsconfig.seed.json prisma/seed.ts",
+    "db:seed:reset": "ts-node --project prisma/tsconfig.seed.json prisma/seed.ts --reset",
+    "db:apply-sql": "bash database/apply-migrations.sh"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -88,5 +91,8 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "prisma": {
+    "seed": "ts-node --project prisma/tsconfig.seed.json prisma/seed.ts"
   }
 }

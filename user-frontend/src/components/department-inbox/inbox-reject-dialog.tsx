@@ -3,12 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { updateRequestStatus } from "@/lib/requests-api";
-import type { RequestItem } from "@/types/request";
+import type { InboxRequestRef } from "@/lib/inbox-request-ref";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selected: RequestItem | null;
+  selected: InboxRequestRef | null;
   dept: string | null | undefined;
   userId: string | undefined;
   onReload: () => Promise<void>;

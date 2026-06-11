@@ -14,7 +14,6 @@ import {
 const prisma = new PrismaClient();
 
 const DEMO_EMAILS = {
-  jane: 'jane@requestflow.local',
   musa: 'musa@requestflow.local',
   henry: 'henry@requestflow.local',
   helen: 'helen@requestflow.local',
@@ -39,7 +38,7 @@ const DEMO_REQUESTS: DemoRequest[] = [
     requestNumber: 'RF-DEMO-0001',
     title: 'Annual leave policy clarification',
     description: 'Need guidance on carry-over days for part-time staff.',
-    createdByEmail: DEMO_EMAILS.jane,
+    createdByEmail: DEMO_EMAILS.musa,
     targetDept: 'HR',
     templateName: 'Policy / HR Support Request',
     status: 'SUBMITTED',
@@ -50,7 +49,7 @@ const DEMO_REQUESTS: DemoRequest[] = [
     requestNumber: 'RF-DEMO-0002',
     title: 'Q3 campaign poster',
     description: 'A2 poster for the internal product launch.',
-    createdByEmail: DEMO_EMAILS.jane,
+    createdByEmail: DEMO_EMAILS.musa,
     targetDept: 'Marketing',
     templateName: 'Graphic Design Request',
     status: 'SUBMITTED',
@@ -72,7 +71,7 @@ const DEMO_REQUESTS: DemoRequest[] = [
     requestNumber: 'RF-DEMO-0004',
     title: 'Employee handbook update',
     description: 'Refresh remote-work section after policy change.',
-    createdByEmail: DEMO_EMAILS.jane,
+    createdByEmail: DEMO_EMAILS.musa,
     targetDept: 'HR',
     templateName: 'Policy / HR Support Request',
     status: 'IN_PROGRESS',
@@ -85,7 +84,7 @@ const DEMO_REQUESTS: DemoRequest[] = [
     requestNumber: 'RF-DEMO-0005',
     title: 'Office relocation FAQ',
     description: 'HR FAQ document for staff moving to floor 3.',
-    createdByEmail: DEMO_EMAILS.jane,
+    createdByEmail: DEMO_EMAILS.musa,
     targetDept: 'HR',
     templateName: 'Policy / HR Support Request',
     status: 'COMPLETED',
@@ -275,7 +274,7 @@ async function main() {
   console.log('Demo inbox (Henry / HR):     RF-DEMO-0001, RF-DEMO-0004, RF-DEMO-0005');
   console.log('Demo inbox (Mary / Mktg):   RF-DEMO-0002, RF-DEMO-0003');
   console.log('Demo tasks (Helen):         RF-DEMO-0004, RF-DEMO-0005');
-  console.log('Demo approve (Jane):        RF-DEMO-0005 (COMPLETED)');
+  console.log('Demo approve (Musa):        RF-DEMO-0005 (COMPLETED)');
 }
 
 main()

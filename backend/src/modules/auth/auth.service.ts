@@ -5,10 +5,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { AuditLogService } from '../../common/audit-log/audit-log.service';
+import { SystemEventsService } from '../../common/system-events/system-events.service';
 import { allowDemoDefaultPassword } from '../../config/env';
+import { ActivityAction } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { JwtPayload } from '../../common/auth.types';
 import { mapUserToResponse } from '../users/user-response.mapper';
+import { loadManagedDepartments } from '../../common/department-manager';
 import type { LoginDto } from './dto/login.dto';
 import { PasswordService } from './password.service';
 
@@ -16,7 +20,11 @@ export const ADMIN_ROLE_NAMES = new Set(['Admin', 'System Admin']);
 const DEMO_DEFAULT_PASSWORD = 'requestflow';
 
 export type LoginResult = {
-  user: ReturnType<typeof mapUserToResponse>;
+  user: ReturnType<typeof mapUserToResponse> & {
+    inboxDepartmentName: string | null;
+    managedDepartmentIds: string[];
+    managedDepartmentNames: string[];
+  };
   accessToken: string;
   /** Token lifetime in seconds */
   expiresIn: number;
@@ -28,6 +36,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditLogService,
+    private readonly systemEvents: SystemEventsService,
   ) {}
 
   async login(
@@ -50,6 +60,13 @@ export class AuthService {
     });
 
     if (!user) {
+      void this.systemEvents.record({
+        level: 'WARN',
+        code: 'LOGIN_FAILED',
+        message: `Failed login for ${email}`,
+        path: '/auth/login',
+        httpMethod: 'POST',
+      });
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -60,6 +77,14 @@ export class AuthService {
 
     const valid = await this.passwords.verify(password, stored);
     if (!valid) {
+      void this.systemEvents.record({
+        level: 'WARN',
+        code: 'LOGIN_FAILED',
+        message: `Failed login for ${email}`,
+        path: '/auth/login',
+        httpMethod: 'POST',
+        userId: user.id,
+      });
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -74,11 +99,21 @@ export class AuthService {
     const roleName = user.role?.name ?? null;
     if (options?.adminOnly) {
       if (!roleName || !ADMIN_ROLE_NAMES.has(roleName)) {
+        void this.systemEvents.record({
+          level: 'WARN',
+          code: 'ADMIN_LOGIN_DENIED',
+          message: `Non-admin user attempted admin portal sign-in (${user.email}).`,
+          path: '/auth/login',
+          httpMethod: 'POST',
+          userId: user.id,
+        });
         throw new ForbiddenException('Admin access required');
       }
     }
 
     const profile = mapUserToResponse(user);
+    const managed = await loadManagedDepartments(this.prisma, user.id);
+    const inboxDepartmentName = managed.names[0] ?? null;
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -89,7 +124,23 @@ export class AuthService {
     const expiresInSec =
       parseInt(process.env.JWT_EXPIRES_IN?.trim() ?? '', 10) || 28800;
 
-    return { user: profile, accessToken, expiresIn: expiresInSec };
+    const portal = options?.adminOnly ? 'admin portal' : 'user portal';
+    void this.audit.record({
+      userId: user.id,
+      action: ActivityAction.USER_SIGNED_IN,
+      description: `Signed in to ${portal} (${user.email}).`,
+    });
+
+    return {
+      user: {
+        ...profile,
+        inboxDepartmentName,
+        managedDepartmentIds: managed.ids,
+        managedDepartmentNames: managed.names,
+      },
+      accessToken,
+      expiresIn: expiresInSec,
+    };
   }
 
   async getProfile(userId: string) {
@@ -103,7 +154,13 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException();
     }
-    return mapUserToResponse(user);
+    const managed = await loadManagedDepartments(this.prisma, user.id);
+    return {
+      ...mapUserToResponse(user),
+      inboxDepartmentName: managed.names[0] ?? null,
+      managedDepartmentIds: managed.ids,
+      managedDepartmentNames: managed.names,
+    };
   }
 
   /** Demo-only; not used in production user provisioning. */

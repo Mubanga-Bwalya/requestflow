@@ -4,12 +4,16 @@ import { LoadingScreen } from "@/components/shared/loading-screen";
 import { LoginForm } from "@/components/login/login-form";
 import { LoginShell } from "@/components/login/login-shell";
 import { useLoginPage } from "@/hooks/use-login-page";
-
-const SHOW_DEMO_HINT = process.env.NEXT_PUBLIC_SHOW_DEMO_HINTS === "true";
-const DEMO_HINT = "Demo: admin@requestflow.local / password requestflow";
+import {
+  adminLoginDemoEmail,
+  adminLoginDemoHint,
+  showDemoHints,
+} from "@/lib/demo-hints";
 
 export default function Page() {
-  const login = useLoginPage();
+  const login = useLoginPage({
+    defaultEmail: showDemoHints ? adminLoginDemoEmail : "",
+  });
 
   if (login.showLoading) {
     return <LoadingScreen variant="dark" />;
@@ -18,7 +22,7 @@ export default function Page() {
   return (
     <LoginShell>
       <LoginForm
-        demoHint={SHOW_DEMO_HINT ? DEMO_HINT : null}
+        demoHint={showDemoHints ? adminLoginDemoHint : null}
         email={login.email}
         password={login.password}
         error={login.error}

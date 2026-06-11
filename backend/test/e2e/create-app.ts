@@ -43,11 +43,11 @@ export async function isDatabaseReady(prisma: PrismaService): Promise<boolean> {
     await prisma.$queryRaw`SELECT 1`;
     const users = await prisma.user.count();
     if (users < 5) return false;
-    const jane = await prisma.user.findFirst({
-      where: { email: { equals: EMAILS.jane, mode: 'insensitive' } },
+    const musa = await prisma.user.findFirst({
+      where: { email: { equals: EMAILS.musa, mode: 'insensitive' } },
       select: { id: true },
     });
-    return !!jane;
+    return !!musa;
   } catch {
     return false;
   }

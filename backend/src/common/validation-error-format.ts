@@ -1,7 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
-function flattenValidationErrors(errors: ValidationError[], prefix = ''): string[] {
+function flattenValidationErrors(
+  errors: ValidationError[],
+  prefix = '',
+): string[] {
   const messages: string[] = [];
   for (const err of errors) {
     const path = prefix ? `${prefix}.${err.property}` : err.property;
@@ -17,7 +20,11 @@ function flattenValidationErrors(errors: ValidationError[], prefix = ''): string
   return messages;
 }
 
-export function validationExceptionFactory(errors: ValidationError[]): BadRequestException {
+export function validationExceptionFactory(
+  errors: ValidationError[],
+): BadRequestException {
   const messages = flattenValidationErrors(errors);
-  return new BadRequestException(messages.length ? messages : ['Validation failed']);
+  return new BadRequestException(
+    messages.length ? messages : ['Validation failed'],
+  );
 }

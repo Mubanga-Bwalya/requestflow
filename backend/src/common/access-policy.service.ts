@@ -3,10 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RequestStatus } from '@prisma/client';
+import { AssignmentStatus, RequestStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RequestUser } from './auth.types';
-import { isManagerRole } from './auth-helpers';
+import { isDepartmentManager } from './department-manager';
 import { ADMIN_ROLE_NAMES } from '../modules/auth/auth.service';
 import type {
   AssignmentAccessContext,
@@ -27,11 +27,15 @@ const MANAGER_INBOX_STATUSES: ReadonlySet<RequestStatus> = new Set([
   'CANCELLED',
 ]);
 
-/** Assignment members (or managers) may drive work progress on the request record. */
-const MEMBER_OR_MANAGER_WORK_STATUSES: ReadonlySet<RequestStatus> = new Set([
-  'IN_PROGRESS',
+/** Manager-only request work/review statuses (not assignee shortcuts). */
+const MANAGER_WORK_STATUSES: ReadonlySet<RequestStatus> = new Set([
   'READY_FOR_REVIEW',
   'COMPLETED',
+]);
+
+/** Members may only bump assignment work status. */
+const MEMBER_ASSIGNMENT_STATUSES: ReadonlySet<AssignmentStatus> = new Set([
+  'IN_PROGRESS',
 ]);
 
 @Injectable()
@@ -50,8 +54,11 @@ export class AccessPolicyService {
     user: RequestUser,
     targetDepartmentId: string,
   ): boolean {
-    if (!isManagerRole(user.roleName)) return false;
-    return !!user.departmentId && user.departmentId === targetDepartmentId;
+    return isDepartmentManager(
+      user.id,
+      targetDepartmentId,
+      user.managedDepartmentIds,
+    );
   }
 
   isAssignmentMember(
@@ -117,7 +124,6 @@ export class AccessPolicyService {
     return false;
   }
 
-  /** Use for GET detail — same message as missing row to avoid UUID enumeration. */
   assertCanViewRequest(
     user: RequestUser,
     ctx: RequestAccessContext | null,
@@ -168,6 +174,107 @@ export class AccessPolicyService {
     }
   }
 
+  canChangeAssignmentStatus(
+    user: RequestUser,
+    ctx: AssignmentAccessContext,
+    status: AssignmentStatus,
+  ): boolean {
+    if (this.isAdmin(user)) return true;
+    if (this.isTargetDepartmentManager(user, ctx.departmentId)) return true;
+    if (
+      this.isAssignmentMember(user, ctx.memberUserIds) &&
+      MEMBER_ASSIGNMENT_STATUSES.has(status)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  assertCanChangeAssignmentStatus(
+    user: RequestUser,
+    ctx: AssignmentAccessContext | null,
+    status: AssignmentStatus,
+  ): void {
+    if (!ctx) {
+      throw new NotFoundException('Assignment not found');
+    }
+    if (!this.canChangeAssignmentStatus(user, ctx, status)) {
+      throw new ForbiddenException(
+        'You do not have permission to change assignment status.',
+      );
+    }
+  }
+
+  canMarkAssignmentReadyForReview(
+    user: RequestUser,
+    ctx: AssignmentAccessContext,
+  ): boolean {
+    if (this.isAdmin(user)) return true;
+    return this.isTargetDepartmentManager(user, ctx.departmentId);
+  }
+
+  assertCanMarkAssignmentReadyForReview(
+    user: RequestUser,
+    ctx: AssignmentAccessContext | null,
+  ): void {
+    if (!ctx) {
+      throw new NotFoundException('Assignment not found');
+    }
+    if (!this.canMarkAssignmentReadyForReview(user, ctx)) {
+      throw new ForbiddenException(
+        'Only the target department manager can mark work ready for review.',
+      );
+    }
+  }
+
+  canCompleteAssignment(
+    user: RequestUser,
+    ctx: AssignmentAccessContext,
+  ): boolean {
+    if (this.isAdmin(user)) return true;
+    return this.isTargetDepartmentManager(user, ctx.departmentId);
+  }
+
+  assertCanCompleteAssignment(
+    user: RequestUser,
+    ctx: AssignmentAccessContext | null,
+  ): void {
+    if (!ctx) {
+      throw new NotFoundException('Assignment not found');
+    }
+    if (!this.canCompleteAssignment(user, ctx)) {
+      throw new ForbiddenException(
+        'Only the target department manager can mark work completed.',
+      );
+    }
+  }
+
+  canMutateMilestone(
+    user: RequestUser,
+    ctx: AssignmentAccessContext,
+    ownerUserId: string,
+  ): boolean {
+    if (this.isAdmin(user)) return true;
+    if (this.isTargetDepartmentManager(user, ctx.departmentId)) return true;
+    return (
+      this.isAssignmentMember(user, ctx.memberUserIds) &&
+      ownerUserId === user.id
+    );
+  }
+
+  assertCanMutateMilestone(
+    user: RequestUser,
+    ctx: AssignmentAccessContext | null,
+    ownerUserId: string,
+  ): void {
+    if (!ctx) {
+      throw new NotFoundException('Assignment not found');
+    }
+    if (!this.canMutateMilestone(user, ctx, ownerUserId)) {
+      throw new ForbiddenException('You can only update milestones you own.');
+    }
+  }
+
   canRequestMissingInformation(
     user: RequestUser,
     ctx: RequestAccessContext,
@@ -203,12 +310,17 @@ export class AccessPolicyService {
     if (MANAGER_INBOX_STATUSES.has(status)) {
       return this.isTargetDepartmentManager(user, ctx.targetDepartmentId);
     }
-    if (MEMBER_OR_MANAGER_WORK_STATUSES.has(status)) {
+    if (status === 'IN_PROGRESS') {
+      if (this.isTargetDepartmentManager(user, ctx.targetDepartmentId)) {
+        return true;
+      }
       return (
-        this.isTargetDepartmentManager(user, ctx.targetDepartmentId) ||
-        (ctx.memberUserIds.length > 0 &&
-          this.isAssignmentMember(user, ctx.memberUserIds))
+        ctx.memberUserIds.length > 0 &&
+        this.isAssignmentMember(user, ctx.memberUserIds)
       );
+    }
+    if (MANAGER_WORK_STATUSES.has(status)) {
+      return this.isTargetDepartmentManager(user, ctx.targetDepartmentId);
     }
     if (status === 'SUBMITTED') {
       return this.isRequester(user, ctx.createdByUserId);

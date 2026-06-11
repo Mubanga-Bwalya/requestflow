@@ -1,41 +1,55 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ReportsView } from "@/components/admin-reports/reports-view";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { fieldLabelClassName } from "@/components/ui/field-control";
 import { Select } from "@/components/ui/select";
 import { fetchDepartments, type ApiDepartment } from "@/lib/departments-api";
-import { peekApiCache } from "@/lib/query-cache";
-import { fetchAdminReports, type ReportCard } from "@/lib/admin-api";
+import { invalidateApiCache, peekApiCache } from "@/lib/query-cache";
+import { apiErrorMessage } from "@/lib/api-error";
+import { fetchAdminReports, type AdminReportsData } from "@/lib/admin-api";
 
 export default function Page() {
   const [departments, setDepartments] = useState<ApiDepartment[]>([]);
   const [dept, setDept] = useState("ALL");
-  const [cards, setCards] = useState<ReportCard[]>([]);
+  const [data, setData] = useState<AdminReportsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    invalidateApiCache("admin:reports:");
     fetchDepartments(true).then(setDepartments).catch(() => setDepartments([]));
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const cacheKey = `admin:reports:${dept}`;
-    const cached = peekApiCache<{ cards: ReportCard[] }>(cacheKey);
+    const cacheKey = `admin:reports:v2:${dept}`;
+    const cached = peekApiCache<AdminReportsData>(cacheKey);
     if (cached) {
-      setCards(cached.cards);
+      setData(cached);
       setLoading(false);
     } else {
       setLoading(true);
     }
+    setError(null);
     const param = dept === "ALL" ? undefined : dept;
     fetchAdminReports(param)
-      .then((r) => {
-        if (!cancelled) setCards(r.cards);
+      .then((report) => {
+        if (!cancelled) setData(report);
       })
-      .catch(() => {
-        if (!cancelled && !cached) setCards([]);
+      .catch((err) => {
+        if (!cancelled && !cached) {
+          setData(null);
+          setError(
+            apiErrorMessage(
+              err,
+              "Could not load reports. Start the backend with: cd backend && npm run build && npm run start:dev",
+            ),
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -43,37 +57,57 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [dept]);
+  }, [dept, reloadKey]);
 
   return (
     <>
-      <PageHeader title="Reports" description="Operational summaries from live request data." />
-      <div className="mb-4 max-w-xs">
-        <label className={fieldLabelClassName}>Filter by department</label>
-        <Select className="mt-1" value={dept} onChange={(e) => setDept(e.target.value)}>
-          <option value="ALL">All</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.name}>
-              {d.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-      {loading ? (
-        <p className="text-sm text-muted">Loading reports…</p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {cards.map((item) => (
-            <Card key={item.label} className="relative overflow-hidden">
-              <div className="absolute left-0 top-0 h-1 w-full bg-brand-primary" aria-hidden />
-              <CardContent>
-                <p className="text-sm text-muted">{item.label}</p>
-                <p className="mt-1 text-lg font-semibold text-brand-dark">{item.value}</p>
-              </CardContent>
-            </Card>
-          ))}
+      <PageHeader
+        title="Reports"
+        description="KPIs, bottlenecks, and recommended actions from live request data."
+      />
+      <div className="mb-6 flex flex-wrap items-end gap-4">
+        <div className="min-w-[12rem]">
+          <label className={fieldLabelClassName} htmlFor="report-dept">
+            Department
+          </label>
+          <Select
+            id="report-dept"
+            className="mt-1"
+            value={dept}
+            onChange={(e) => setDept(e.target.value)}
+          >
+            <option value="ALL">All departments</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
         </div>
-      )}
+        <Button
+          type="button"
+          variant="outline"
+          size="compact"
+          onClick={() => {
+            invalidateApiCache(`admin:reports:v2:${dept}`);
+            setReloadKey((k) => k + 1);
+          }}
+        >
+          Refresh
+        </Button>
+      </div>
+
+      {error ? (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
+
+      {loading && !data ? (
+        <p className="text-sm text-zamtel-muted">Loading reports…</p>
+      ) : data ? (
+        <ReportsView data={data} />
+      ) : null}
     </>
   );
 }

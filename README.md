@@ -1,33 +1,147 @@
 # RequestFlow
 
-RequestFlow is an internal request and progress tracking system for HR and Marketing departments. Employees submit structured requests, department managers review and assign work, assigned members track milestones, and requesters see progress and approve completion.
+Internal request and progress-tracking system for Zamtel departments. Employees submit structured requests to other departments; managers review, assign work, and track milestones; requesters approve completed work.
 
-## MVP scope
+**Documentation:** [`docs/`](docs/) — architecture, API, security, setup, deployment, testing, and workflows.
 
-- HR and Marketing only
-- Structured request forms (templates + fields from DB)
-- Manager review, missing-information workflow, team assignment
-- Milestone-based progress tracking
-- Admin configuration (users, departments, templates, settings, reports)
-- No chat/comments in MVP
+---
 
-## Current status (2026-06-04)
+## Who uses RequestFlow
 
-| Layer | Status |
-|-------|--------|
-| **Backend** | NestJS + Prisma + PostgreSQL — JWT auth, access policy, rate limits, e2e security tests |
-| **User portal** (`user-frontend`, :3000) | API-backed; Bearer JWT; settings-driven create-request |
-| **Admin portal** (`admin-frontend`, :3001) | API-backed; admin role guard; configuration UI |
-| **Auth** | Bcrypt + JWT; DB-loaded roles; `AccessPolicyService` on requests/assignments; rate limits; session in `localStorage` (see `docs/PRODUCTION_AUTH.md`) |
+| Audience | Portal | Port |
+|----------|--------|------|
+| Employees, department managers, assignees | User portal (`user-frontend`) | 3000 |
+| System administrators | Admin portal (`admin-frontend`) | 3001 |
+| All clients | NestJS API (`backend`) | 4000 |
 
-**Quick start:** see [`docs/LOCAL_RUN.md`](docs/LOCAL_RUN.md). **E2E test checklist:** [`AGENTS.md`](AGENTS.md).
+---
+
+## Main features
+
+- Structured request forms (templates + fields configured in admin)
+- Department-targeted requests with manager inbox
+- Missing-information workflow
+- Team assignment with milestones and progress tracking
+- Requester review and approval
+- In-app notifications
+- Admin: users, departments, templates, settings, reports, system logs (`/logs`)
+- Role-based access enforced on the **backend** (not UI-only)
+
+---
 
 ## Tech stack
 
-- Next.js 14, TypeScript, Tailwind CSS
-- NestJS, Prisma, PostgreSQL 16
+| Layer | Technology |
+|-------|------------|
+| User & admin UI | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS |
+| API | NestJS 11, TypeScript |
+| ORM / client | Prisma 5 (PostgreSQL) |
+| Database | PostgreSQL 16 |
+| Cache (optional) | Redis 7 via `ioredis` |
+| Email (optional) | Resend |
 
-## Official brand palette
+---
+
+## Repository layout
+
+```txt
+.
+├── backend/              # NestJS API, Prisma schema, SQL migrations, tests
+├── user-frontend/      # Employee & manager portal
+├── admin-frontend/     # Configuration & reporting portal
+├── docker/             # docker-compose.yml (Postgres + Redis)
+├── docs/               # Enterprise documentation (start here)
+├── package.json        # Workspace scripts (optional convenience)
+└── README.md
+```
+
+---
+
+## Prerequisites
+
+- Node.js **20.11+** (see `.nvmrc`)
+- npm 10+
+- Docker Desktop (recommended for Postgres and Redis)
+
+---
+
+## Quick start
+
+Full steps: **[`docs/SETUP.md`](docs/SETUP.md)**
+
+```bash
+npm install
+npm run docker:up
+cp backend/.env.example backend/.env
+bash backend/database/apply-migrations.sh   # Windows: .\backend\database\apply-migrations.ps1
+cd backend && npm run prisma:generate && npm run db:seed -- --reset-passwords
+npm run build --workspace=backend
+
+# Three terminals from repo root:
+npm run dev:api
+npm run dev:user     # http://localhost:3000
+npm run dev:admin    # http://localhost:3001
+```
+
+Copy `user-frontend/.env.example` → `.env.local` and `admin-frontend/.env.example` → `.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:4000`.
+
+**Demo login (development only):** password `requestflow` — see [`docs/SETUP.md`](docs/SETUP.md#demo-accounts).
+
+---
+
+## Useful commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev:api` | Start NestJS API (:4000) |
+| `npm run dev:user` | Start user portal (:3000) |
+| `npm run dev:admin` | Start admin portal (:3001) |
+| `npm run docker:up` | Start Postgres + Redis |
+| `npm run docker:down` | Stop containers |
+| `npm run build` | Build all workspaces |
+| `npm run test` | Backend unit tests |
+| `npm run test:e2e` | Backend e2e tests |
+| `npm run lint` | Lint all workspaces |
+| `npm run typecheck` | Typecheck all workspaces |
+
+Backend-only: `npm run db:seed`, `npm run hash-passwords` — see [`docs/DATABASE.md`](docs/DATABASE.md).
+
+---
+
+## Documentation index
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/SETUP.md`](docs/SETUP.md) | Local development setup and troubleshooting |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design and code map |
+| [`docs/API.md`](docs/API.md) | REST API reference |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | Schema, SQL files, seeds, migrations |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Auth, authorization, known gaps |
+| [`docs/USER_ROLES_AND_PERMISSIONS.md`](docs/USER_ROLES_AND_PERMISSIONS.md) | Who can do what |
+| [`docs/REQUEST_WORKFLOW.md`](docs/REQUEST_WORKFLOW.md) | Request and assignment lifecycle |
+| [`docs/TESTING.md`](docs/TESTING.md) | Automated and manual tests |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Production deployment plan |
+| [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) | Demo vs pilot readiness scores and limitations |
+| [`docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) | Pre/post deploy checklist |
+| [`docs/CODE_ORGANIZATION.md`](docs/CODE_ORGANIZATION.md) | Where rules live; module layout |
+| [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) | Code quality rules |
+| [`docs/adr/`](docs/adr/) | Architecture decision records |
+
+---
+
+## Developer notes
+
+- **Authorization is server-side.** UI gates are convenience only; never rely on hidden buttons for security. See [`docs/SECURITY.md`](docs/SECURITY.md).
+- **Progress at 100% does not auto-complete a request.** Manager marks ready for review; requester approves. See [`docs/REQUEST_WORKFLOW.md`](docs/REQUEST_WORKFLOW.md).
+- **Department-manager authority** is set manually per department (`manager_user_id`); manager **role name alone** does not grant inbox access. One user may manage multiple departments.
+- **Secrets** belong in env/secret store only — never commit `.env` or API keys. **Demo hints** (`NEXT_PUBLIC_SHOW_DEMO_HINTS`) are development-only.
+- **File length target:** ≤ 250 lines per application source file — [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md).
+- **Windows / OneDrive:** exclude `.next` and `node_modules` from sync; use `npm run dev` (webpack), not turbo, on synced paths.
+- **Documentation upkeep:** any change to API, schema, env vars, permissions, or deployment must update the relevant `docs/` file in the same change.
+
+---
+
+## Brand palette
 
 | Token | Hex |
 |-------|-----|
@@ -36,107 +150,4 @@ RequestFlow is an internal request and progress tracking system for HR and Marke
 | Lime Green | `#A9DD00` |
 | White | `#FFFFFF` |
 
-Both frontends use a dark-green sidebar and shared `BrandLogo` assets under `public/brand/`.
-
-## Ports
-
-| Service | Port |
-|---------|------|
-| User portal | 3000 |
-| Admin portal | 3001 |
-| API | 4000 |
-| PostgreSQL | 5432 |
-
-## Development setup
-
-### 1. Database
-
-```bash
-docker compose up -d
-psql -U postgres -d requestflow -f backend/database/001_create_schema.sql
-psql -U postgres -d requestflow -f backend/database/002_seed_core_data.sql
-psql -U postgres -d requestflow -f backend/database/004_system_settings.sql
-psql -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
-psql -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
-psql -U postgres -d requestflow -f backend/database/008_system_events.sql
-psql -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
-```
-
-Details: [`backend/database/README.md`](backend/database/README.md). `010` adds search indexes (`pg_trgm`) and list-query indexes — safe to re-run.
-
-### 2. Backend
-
-```bash
-cd backend
-cp .env.example .env   # set DATABASE_URL
-npm install
-npm run prisma:generate
-npm run build          # required before start:dev if dist/ is missing
-npm run start:dev
-```
-
-API: http://localhost:4000/health
-
-### 3. Frontends
-
-Copy `.env.example` → `.env.local` in each frontend (`NEXT_PUBLIC_API_URL=http://localhost:4000`).
-
-```bash
-cd user-frontend && npm install && npm run dev    # :3000
-cd admin-frontend && npm install && npm run dev   # :3001
-```
-
-### Test accounts (local dev only — password: `requestflow`, bcrypt in seed)
-
-Do not use the demo password in production. See [`docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md).
-
-| Email | Use |
-|-------|-----|
-| `admin@requestflow.local` | Admin portal only — DB role name **`Admin`** |
-| `jane@requestflow.local` | Create requests |
-| `henry@requestflow.local` / `mary@requestflow.local` | Department inbox |
-| `helen@requestflow.local` / `mark@requestflow.local` | Tasks / milestones |
-
-## Folder structure
-
-```txt
-RequestFlow/
-  user-frontend/     # Employee & manager portal
-  admin-frontend/    # System configuration portal
-  backend/           # NestJS API + database SQL
-  docs/              # LOCAL_RUN.md
-  AGENTS.md          # Agent handover + E2E playbook
-  CLAUDE.md          # Project memory for AI sessions
-```
-
-## Documentation index
-
-| File | Purpose |
-|------|---------|
-| [`docs/LOCAL_RUN.md`](docs/LOCAL_RUN.md) | Step-by-step local stack + troubleshooting |
-| [`docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) | **Deploy gate** — env, DB, builds, smoke, rollback |
-| [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) | Readiness score (8/10 internal MVP), P0/P1, deferred items |
-| [`docs/PRODUCTION_AUTH.md`](docs/PRODUCTION_AUTH.md) | JWT, CORS, password policy |
-| [`docs/COMPANY_INTEGRATION.md`](docs/COMPANY_INTEGRATION.md) | Company SSO / HRIS integration notes |
-| [`docs/CODE_STANDARDS.md`](docs/CODE_STANDARDS.md) | File length and naming conventions |
-| [`backend/test/security.e2e-spec.ts`](backend/test/security.e2e-spec.ts) | Security regression e2e (IDOR, authZ, validation) |
-| [`backend/test/workflow.e2e-spec.ts`](backend/test/workflow.e2e-spec.ts) | Workflow status guards e2e |
-| [`backend/test/regression.e2e-spec.ts`](backend/test/regression.e2e-spec.ts) | Extended authZ/validation regression e2e |
-| [`AGENTS.md`](AGENTS.md) | Integration maps, smoke tests, full E2E |
-| [`CLAUDE.md`](CLAUDE.md) | Concise project memory |
-| [`backend/README.md`](backend/README.md) | API endpoints |
-| [`user-frontend/AGENTS.md`](user-frontend/AGENTS.md) | User portal handover |
-| [`admin-frontend/AGENTS.md`](admin-frontend/AGENTS.md) | Admin portal handover |
-
-## Dev notes (Windows / OneDrive)
-
-- Both frontends default to **webpack** for `npm run dev` (Turbopack via `dev:turbo` only if needed). See [`docs/DEV_PERFORMANCE.md`](docs/DEV_PERFORMANCE.md) for OneDrive / slow dev fixes.
-- Exclude `node_modules` and `.next` from OneDrive sync, or move the repo outside a synced folder, for best performance.
-- If admin shows `ENOENT` under `.next`, delete `admin-frontend/.next` and restart dev.
-
-## Out of scope (MVP)
-
-- httpOnly cookies / refresh tokens / company SSO (see [`docs/PRODUCTION_AUTH.md`](docs/PRODUCTION_AUTH.md))
-- POST new request templates from admin UI
-- Role CRUD in admin UI
-- Real file upload storage (filename-only in forms)
+Assets: `user-frontend/public/brand/`, `admin-frontend/public/brand/`.

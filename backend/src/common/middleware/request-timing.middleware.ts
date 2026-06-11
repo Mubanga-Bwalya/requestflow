@@ -28,7 +28,7 @@ export function requestTimingMiddleware(
       const requestId =
         (req.headers['x-request-id'] as string | undefined) ??
         (res.getHeader('x-request-id') as string | undefined);
-      // eslint-disable-next-line no-console
+
       console.warn(
         `[slow] ${req.method} ${req.path} ${res.statusCode} ${ms}ms requestId=${requestId ?? '-'}`,
       );

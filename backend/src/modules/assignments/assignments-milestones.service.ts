@@ -3,14 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ActivityAction, AssignmentStatus, NotificationType } from '@prisma/client';
+import { ActivityAction, NotificationType } from '@prisma/client';
 import { AccessPolicyService } from '../../common/access-policy.service';
 import type { RequestUser } from '../../common/auth.types';
 import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
 import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { notifyRequesterWorkCompleted } from '../notifications/workflow-notifications';
 import type {
   CreateMilestoneDto,
   UpdateMilestoneDto,
@@ -18,20 +17,12 @@ import type {
 import {
   mapMilestoneStatusToDb,
   recomputeAssignmentProgress,
+  resolveAssignmentStatusFromProgress,
   syncRequestProgressFromAssignment,
 } from './assignment.mapper';
 import { withAssignmentProgressLock } from './assignment-progress-lock';
 import { invalidateWorkspaceForAssignment } from './assignment-workspace-cache';
 import { AssignmentsQueryService } from './assignments-query.service';
-
-function resolveAssignmentStatusFromProgress(
-  priorStatus: AssignmentStatus,
-  progressPct: number,
-): AssignmentStatus {
-  if (progressPct >= 100) return 'COMPLETED';
-  if (progressPct > 0 && priorStatus === 'ASSIGNED') return 'IN_PROGRESS';
-  return priorStatus;
-}
 
 @Injectable()
 export class AssignmentsMilestonesService {
@@ -66,6 +57,7 @@ export class AssignmentsMilestonesService {
         'Milestone owner must be an assignment member.',
       );
     }
+    this.access.assertCanMutateMilestone(user, accessCtx, dto.ownerUserId);
 
     const status = mapMilestoneStatusToDb('TODO');
     const progress = 0;
@@ -117,7 +109,6 @@ export class AssignmentsMilestonesService {
         tx,
         assignment.requestId,
         progressPct,
-        assignmentStatus,
       );
 
       await tx.activityLog.create({
@@ -158,12 +149,17 @@ export class AssignmentsMilestonesService {
     });
     if (!milestone) throw new NotFoundException('Milestone not found');
 
+    this.access.assertCanMutateMilestone(
+      user,
+      accessCtx,
+      milestone.ownerUserId,
+    );
+
     const status = dto.status ? mapMilestoneStatusToDb(dto.status) : undefined;
     const progress =
       dto.progress === undefined
         ? undefined
         : Math.max(0, Math.min(100, dto.progress));
-    let becameCompleted = false;
 
     await this.prisma.$transaction(async (tx) => {
       await withAssignmentProgressLock(tx, assignmentId);
@@ -192,8 +188,6 @@ export class AssignmentsMilestonesService {
         prior.status,
         progressPct,
       );
-      becameCompleted =
-        assignmentStatus === 'COMPLETED' && prior.status !== 'COMPLETED';
 
       await tx.assignment.update({
         where: { id: assignmentId },
@@ -204,7 +198,6 @@ export class AssignmentsMilestonesService {
         tx,
         milestone.assignment.requestId,
         progressPct,
-        assignmentStatus,
       );
 
       await tx.activityLog.create({
@@ -232,15 +225,6 @@ export class AssignmentsMilestonesService {
           relatedMilestoneId: milestoneId,
         })),
     );
-
-    if (becameCompleted) {
-      await notifyRequesterWorkCompleted(
-        this.notifications,
-        this.prisma,
-        milestone.assignment.request,
-        assignmentId,
-      );
-    }
 
     await invalidateWorkspaceForAssignment(this.cache, this.prisma, {
       requesterId: milestone.assignment.request.createdByUserId,

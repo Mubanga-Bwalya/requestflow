@@ -9,6 +9,7 @@ import {
   trimFieldValues,
   validateTemplateFields,
 } from "@/lib/create-request-utils";
+import { buildCreateRequestFieldAnswers } from "@/lib/create-request-build";
 import type { Department, RequestTypeDef } from "@/lib/request-templates";
 import { fetchSettings } from "@/lib/settings-api";
 import { fetchActiveDepartments } from "@/lib/departments-api";
@@ -25,6 +26,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
   const [step, setStep] = useState<WizardStep>(1);
   const [departments, setDepartments] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
   const [department, setDepartment] = useState<Department | null>(presetDepartment);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [requestTypeId, setRequestTypeId] = useState("");
@@ -55,6 +57,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
 
   useEffect(() => {
     setLoadingDepartments(true);
+    setDepartmentsError(null);
     fetchActiveDepartments()
       .then((rows) => {
         setDepartments(rows);
@@ -64,7 +67,10 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
           setDepartment(rows[0].name);
         }
       })
-      .catch(() => setDepartments([]))
+      .catch((e) => {
+        setDepartments([]);
+        setDepartmentsError(apiErrorMessage(e, "Could not load departments. Check your connection and try again."));
+      })
       .finally(() => setLoadingDepartments(false));
   }, [presetDepartment]);
 
@@ -132,22 +138,6 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     });
   }
 
-  function buildFieldAnswers(requestTypeDef: RequestTypeDef, trimmed: Record<string, string>) {
-    return requestTypeDef.fields.map((f) => {
-      const raw = trimmed[f.key] ?? "";
-      if (f.type === "MULTI_SELECT") {
-        return { fieldKey: f.key, answerJson: raw ? raw.split("|||") : [] };
-      }
-      if (f.type === "CHECKBOX") {
-        return { fieldKey: f.key, answerText: raw === "true" ? "Yes" : "No" };
-      }
-      if (f.type === "FILE") {
-        return { fieldKey: f.key, answerText: raw || undefined, fileUrl: raw || undefined };
-      }
-      return { fieldKey: f.key, answerText: raw || undefined };
-    });
-  }
-
   async function submitRequest() {
     if (submitting) return;
     if (!userId || !department || !requestType) return;
@@ -168,7 +158,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
         title: deriveRequestTitle(trimmed, requestType),
         description: deriveRequestDescription(trimmed, requestType),
         priority,
-        fieldAnswers: buildFieldAnswers(requestType, trimmed),
+        fieldAnswers: buildCreateRequestFieldAnswers(requestType, trimmed),
       });
       setCreatedId(created.id);
       setStep(4);
@@ -228,6 +218,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     step,
     departments,
     loadingDepartments,
+    departmentsError,
     department,
     templates,
     requestTypeId,

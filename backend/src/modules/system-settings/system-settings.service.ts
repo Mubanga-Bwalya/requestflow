@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { ActivityAction } from '@prisma/client';
+import { AuditLogService } from '../../common/audit-log/audit-log.service';
 import { CacheKeys, CacheTtl } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -11,6 +13,7 @@ export class SystemSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly audit: AuditLogService,
   ) {}
 
   private map(row: {
@@ -32,9 +35,9 @@ export class SystemSettingsService {
   }
 
   async get() {
-    const cached = await this.cache.getJson<ReturnType<SystemSettingsService['map']>>(
-      CacheKeys.settingsSystem,
-    );
+    const cached = await this.cache.getJson<
+      ReturnType<SystemSettingsService['map']>
+    >(CacheKeys.settingsSystem);
     if (cached) return cached;
 
     let row = await this.prisma.systemSettings.findUnique({
@@ -46,11 +49,15 @@ export class SystemSettingsService {
       });
     }
     const mapped = this.map(row);
-    await this.cache.setJson(CacheKeys.settingsSystem, mapped, CacheTtl.lookupSeconds);
+    await this.cache.setJson(
+      CacheKeys.settingsSystem,
+      mapped,
+      CacheTtl.lookupSeconds,
+    );
     return mapped;
   }
 
-  async update(dto: UpdateSystemSettingsDto) {
+  async update(dto: UpdateSystemSettingsDto, actorId?: string) {
     await this.get();
     const row = await this.prisma.systemSettings.update({
       where: { id: DEFAULT_ID },
@@ -74,7 +81,16 @@ export class SystemSettingsService {
     });
     const mapped = this.map(row);
     await this.cache.del(CacheKeys.settingsSystem);
-    await this.cache.setJson(CacheKeys.settingsSystem, mapped, CacheTtl.lookupSeconds);
+    await this.cache.setJson(
+      CacheKeys.settingsSystem,
+      mapped,
+      CacheTtl.lookupSeconds,
+    );
+    void this.audit.record({
+      userId: actorId,
+      action: ActivityAction.ADMIN_SETTINGS_CHANGED,
+      description: 'Admin updated system settings.',
+    });
     return mapped;
   }
 }

@@ -12,6 +12,27 @@ import { peekApiCache } from "@/lib/query-cache";
 import { fetchSettings, updateSettings, type SystemSettings } from "@/lib/settings-api";
 import { useAuth } from "@/lib/auth-context";
 
+const UPLOAD_LIMIT_MIN = 1;
+const UPLOAD_LIMIT_MAX = 500;
+const SYSTEM_NAME_MAX = 120;
+
+function validateSettingsForm(form: SystemSettings): string | null {
+  const name = form.systemName.trim();
+  if (!name) return "System name is required.";
+  if (name.length > SYSTEM_NAME_MAX) {
+    return `System name must be ${SYSTEM_NAME_MAX} characters or fewer.`;
+  }
+  if (
+    !Number.isFinite(form.fileUploadLimitMb) ||
+    !Number.isInteger(form.fileUploadLimitMb) ||
+    form.fileUploadLimitMb < UPLOAD_LIMIT_MIN ||
+    form.fileUploadLimitMb > UPLOAD_LIMIT_MAX
+  ) {
+    return `Upload limit must be between ${UPLOAD_LIMIT_MIN} and ${UPLOAD_LIMIT_MAX} MB.`;
+  }
+  return null;
+}
+
 export default function Page() {
   const { state, actions } = useAuth();
   const [saved, setSaved] = useState(false);
@@ -43,6 +64,11 @@ export default function Page() {
 
   async function save() {
     setError(null);
+    const validationError = validateSettingsForm(form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setSaving(true);
     try {
       const updated = await updateSettings({
@@ -77,12 +103,23 @@ export default function Page() {
           ) : (
             <>
               <div>
-                <label className={fieldLabelClassName}>System Name</label>
-                <Input className="mt-1" value={form.systemName} onChange={(e) => setForm((p) => ({ ...p, systemName: e.target.value }))} />
+                <label className={fieldLabelClassName} htmlFor="settings-system-name">
+                  System Name
+                </label>
+                <Input
+                  id="settings-system-name"
+                  className="mt-1"
+                  maxLength={SYSTEM_NAME_MAX}
+                  value={form.systemName}
+                  onChange={(e) => setForm((p) => ({ ...p, systemName: e.target.value }))}
+                />
               </div>
               <div>
-                <label className={fieldLabelClassName}>Default Priority</label>
+                <label className={fieldLabelClassName} htmlFor="settings-default-priority">
+                  Default Priority
+                </label>
                 <Select
+                  id="settings-default-priority"
                   className="mt-1"
                   value={form.defaultPriority}
                   onChange={(e) => setForm((p) => ({ ...p, defaultPriority: e.target.value as SystemSettings["defaultPriority"] }))}
@@ -94,18 +131,28 @@ export default function Page() {
                 </Select>
               </div>
               <div>
-                <label className={fieldLabelClassName}>File Upload Limit (MB)</label>
+                <label className={fieldLabelClassName} htmlFor="settings-upload-limit">
+                  File Upload Limit (MB)
+                </label>
                 <Input
+                  id="settings-upload-limit"
                   className="mt-1"
                   type="number"
-                  min={1}
+                  min={UPLOAD_LIMIT_MIN}
+                  max={UPLOAD_LIMIT_MAX}
                   value={String(form.fileUploadLimitMb)}
-                  onChange={(e) => setForm((p) => ({ ...p, fileUploadLimitMb: Number(e.target.value || 25) }))}
+                  onChange={(e) => setForm((p) => ({ ...p, fileUploadLimitMb: Number(e.target.value) }))}
                 />
+                <p className="mt-1 text-xs text-zamtel-muted">
+                  Allowed range: {UPLOAD_LIMIT_MIN}–{UPLOAD_LIMIT_MAX} MB.
+                </p>
               </div>
               <div>
-                <label className={fieldLabelClassName}>Allow uploads</label>
+                <label className={fieldLabelClassName} htmlFor="settings-allow-uploads">
+                  Allow uploads
+                </label>
                 <Select
+                  id="settings-allow-uploads"
                   className="mt-1"
                   value={form.allowUploads ? "yes" : "no"}
                   onChange={(e) => setForm((p) => ({ ...p, allowUploads: e.target.value === "yes" }))}

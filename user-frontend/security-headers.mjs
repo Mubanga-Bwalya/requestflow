@@ -2,6 +2,18 @@
 
 const DEV_API_ORIGINS = ["http://localhost:4000", "http://127.0.0.1:4000"];
 
+/** Fail production builds when demo UI would be enabled. */
+export function validateProductionEnv() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.NEXT_PUBLIC_SHOW_DEMO_HINTS === "true"
+  ) {
+    throw new Error(
+      "NEXT_PUBLIC_SHOW_DEMO_HINTS must be false or unset in production builds.",
+    );
+  }
+}
+
 function resolveConnectSrcOrigins() {
   const origins = new Set();
   const raw = process.env.NEXT_PUBLIC_API_URL?.trim();

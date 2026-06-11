@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { SystemLogDetailDialog } from "@/components/admin-logs/system-log-detail-dialog";
 import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/shared/data-table";
+import { TableActionButton } from "@/components/shared/table-action-button";
 import type { SystemEventItem } from "@/lib/admin-api";
 import { formatRelativeTime } from "@/lib/utils";
 
@@ -21,9 +24,15 @@ const columns: DataTableColumn[] = [
   { key: "route", label: "Route" },
   { key: "user", label: "User" },
   { key: "message", label: "Message" },
+  { key: "__view", label: "" },
 ];
 
 export function SystemLogsTable({ items }: { items: SystemEventItem[] }) {
+  const [selected, setSelected] = useState<SystemEventItem | null>(null);
+
+  const open = (ev: SystemEventItem) => setSelected(ev);
+  const close = () => setSelected(null);
+
   const rows: DataTableRow[] = items.map((ev) => ({
     when: formatRelativeTime(ev.createdAt),
     level: levelBadge(ev.level),
@@ -33,11 +42,21 @@ export function SystemLogsTable({ items }: { items: SystemEventItem[] }) {
     route: ev.httpMethod && ev.path ? `${ev.httpMethod} ${ev.path}` : ev.path ?? "—",
     user: ev.userName ?? ev.userEmail ?? "—",
     message: (
-      <span className="block max-w-md truncate" title={ev.message}>
+      <button
+        type="button"
+        className="rf-text-link block max-w-md truncate text-left text-sm text-slate-700"
+        onClick={() => open(ev)}
+      >
         {ev.message}
-      </span>
+      </button>
     ),
+    __view: <TableActionButton onClick={() => open(ev)}>View</TableActionButton>,
   }));
 
-  return <DataTable columns={columns} rows={rows} />;
+  return (
+    <>
+      <DataTable columns={columns} rows={rows} />
+      <SystemLogDetailDialog event={selected} open={selected !== null} onOpenChange={(next) => !next && close()} />
+    </>
+  );
 }

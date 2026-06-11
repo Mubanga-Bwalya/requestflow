@@ -1,94 +1,101 @@
 # Production readiness summary
 
-> **Last updated:** 2026-06-04 — After Phases 1–5 (security, tests, maintainability, deployment gate).
+> **Last updated:** 2026-06-11  
+> **Audience:** Supervisors, internal IT, and developers preparing a demo or pilot.
 
-## Score
-
-| Audience | Before (audit) | After Phases 1–5 | Notes |
-|----------|----------------|------------------|-------|
-| Public internet / multi-tenant | 4/10 | **Not supported** | No RLS, JWT in localStorage |
-| **Internal company MVP** (trusted users, VPN/private network) | 4/10 | **8/10** | AuthZ, tests, CI, deployment checklist |
-
-**8/10** means deployable for a controlled pilot with documented compensating controls. **10/10** requires httpOnly/SSO, token revocation, monitoring, and real file storage.
+Related: [`DEPLOYMENT.md`](DEPLOYMENT.md) · [`PRODUCTION_DEPLOYMENT_CHECKLIST.md`](PRODUCTION_DEPLOYMENT_CHECKLIST.md) · [`SECURITY.md`](SECURITY.md)
 
 ---
 
-## P0 / P1 closure
+## What RequestFlow is
 
-| ID | Issue | Status | Compensating control |
-|----|-------|--------|----------------------|
-| P0-1 | IDOR on request/assignment detail | **Closed** | `AccessPolicyService` + e2e tests |
-| P0-2 | Unauthorized status / milestone / missing-info | **Closed** | Policy matrix + e2e tests |
-| P0-3 | Weak / plain-text passwords in prod | **Closed** | Bcrypt + production env flags |
-| P0-4 | JWT role spoofing from payload | **Closed** | DB reload in `JwtStrategy` |
-| P0-5 | No rate limiting on login | **Closed** | 5/min throttle + e2e |
-| P1-1 | Missing DTO validation | **Closed** | class-validator on sensitive DTOs |
-| P1-2 | Request number races | **Closed** | `007` sequences + P2002 retry |
-| P1-3 | Stale mock/local-only docs | **Closed** | README, AGENTS, COMPANY_INTEGRATION |
-| P1-4 | JWT in localStorage (XSS theft) | **Deferred** | Short TTL; CSP headers; private network pilot — see `PRODUCTION_AUTH.md` |
-| P1-5 | No immediate token revoke on role change | **Partial** | DB role on each request; demoted admin blocked — token version post-MVP |
-| P1-6 | CSP `connect-src` localhost only | **Documented** | Must edit `next.config.mjs` before prod URL — checklist §2.4 |
-| P1-7 | PostgreSQL RLS | **Deferred** | App-layer authorization only |
-| P1-8 | File upload pipeline | **Deferred** | Filename only; no AV/storage |
+**RequestFlow** is an **internal company request and task management system**. Employees submit structured requests to other departments; appointed department managers review incoming work, assign team members, and track milestones; requesters approve completed work. Admins configure users, departments, templates, and system settings.
+
+It is **not** a public multi-tenant SaaS product.
 
 ---
 
-## Verification matrix (Phase 5)
+## Readiness scores (2026-06-11)
 
-Automated script (repo root):
+| Audience | Score | Meaning |
+|----------|-------|---------|
+| **Supervisor / internal demo** | **8.5 / 10** | End-to-end workflow works locally; admin logs, error UX, and security fixes in place; manual smoke path documented. |
+| **Real internal company deployment** | **7.5 / 10** | Suitable for a **controlled pilot** on internal network with rotated secrets, applied migrations, and manual QA. Not turnkey production (no app Dockerfiles, SSO, or HRIS sync). |
 
-```powershell
-powershell -File scripts/verify-production-readiness.ps1
+Scores assume: migrations applied via `apply-migrations.sh`, demo passwords rotated or accounts admin-created, `NEXT_PUBLIC_SHOW_DEMO_HINTS` unset in production builds.
+
+---
+
+## Behaviour supervisors should know
+
+| Topic | Correct behaviour |
+|-------|-------------------|
+| **100% progress** | Does **not** auto-complete the request. Manager marks assignment ready for review; requester approves. |
+| **Department manager** | Authority comes from **manual** `manager_user_id` on each department (admin UI). |
+| **Manager role name** | Does **not** alone grant inbox or assignment powers. |
+| **Multiple departments** | One user **can** manage several departments. |
+| **Admins** | `Admin` / `System Admin` have global access (backend-enforced). |
+| **Secrets** | Never commit `.env`, API keys, or `JWT_SECRET` — examples only in `*.env.example`. |
+| **Demo hints** | Login prefill/hints require `NEXT_PUBLIC_SHOW_DEMO_HINTS=true` (dev only; production build fails if true). |
+
+---
+
+## What is fixed (phases 1–7)
+
+- Server-side authorization for workflow, milestones, cross-dept assignment, diagnostics ingest
+- Department manager from `departments.manager_user_id` only (not role name)
+- Migration order unified; seeds preserve passwords on re-run; integrity constraints (`015`)
+- Demo hints and API URL production guards on frontends
+- Admin `/logs` page (system events + activity audit)
+- API error banners (no fake-empty data on failure)
+- Admin role gate UX for non-admin sessions
+- Service splits and documentation (`CODE_ORGANIZATION.md`)
+
+---
+
+## What remains (safe to mention as limitations)
+
+| Item | Risk if ignored |
+|------|-----------------|
+| No SSO / corporate IdP | Users manage passwords in-app |
+| JWT in `localStorage` | XSS could steal session — CSP + internal network mitigate |
+| No frontend automated tests | Regressions need manual smoke tests |
+| No migration version table | Operators must use `apply-migrations.sh` in order |
+| No production Dockerfiles for apps | Manual Node deploy or custom packaging |
+| Partial e2e coverage | Some paths (full happy path, throttle) lack e2e |
+| Backend lint (6 ESLint errors) | `cache.service.ts`, throttler guard, `admin.service.ts`, `template-fields.service.ts` — unused vars; non-blocking for runtime |
+
+---
+
+## Risks before full company rollout
+
+**Must fix / verify:**
+
+1. Rotate all demo passwords; set `ALLOW_DEMO_DEFAULT_PASSWORD=false`
+2. Strong `JWT_SECRET` (32+ chars) in secret store
+3. `CORS_ORIGINS` set to real portal URLs only
+4. `NEXT_PUBLIC_API_URL` set at frontend build time
+5. Run full manual checklist — [`TESTING.md`](TESTING.md) and [`PRODUCTION_DEPLOYMENT_CHECKLIST.md`](PRODUCTION_DEPLOYMENT_CHECKLIST.md)
+
+**Should plan:**
+
+- SSO and httpOnly cookies ([`SECURITY.md`](SECURITY.md))
+- HRIS user provisioning ([`COMPANY_INTEGRATION.md`](COMPANY_INTEGRATION.md))
+- Monitoring on `GET /health` and admin system events
+
+---
+
+## Quick verification before a demo
+
+```bash
+npm run docker:up
+bash backend/database/apply-migrations.sh
+cd backend && npm run prisma:generate && npm run db:seed -- --reset-passwords
+npm run build --workspace=backend
+npm run test
+npm run dev:api    # terminal 1
+npm run dev:user   # terminal 2
+npm run dev:admin  # terminal 3
 ```
 
-Run before sign-off (see [`PRODUCTION_DEPLOYMENT_CHECKLIST.md`](PRODUCTION_DEPLOYMENT_CHECKLIST.md)):
-
-| Check | Command |
-|-------|---------|
-| Backend unit tests | `cd backend && npm run test` |
-| Backend e2e | `cd backend && npm run test:e2e` |
-| Backend build | `cd backend && npm run build` |
-| User build | `cd user-frontend && npm run build` |
-| Admin build | `cd admin-frontend && npm run build` |
-| Lint / typecheck | `npm run lint` + `npm run typecheck` per app |
-| Audit | `npm audit --audit-level=high` per app |
-| Health | `GET /health` — no secrets |
-| Secrets in git | Only `*.env.example` tracked |
-
----
-
-## Post-MVP (explicitly not hidden)
-
-| Item | Priority | Doc |
-|------|----------|-----|
-| httpOnly cookies / refresh tokens | High | `PRODUCTION_AUTH.md` |
-| Company SSO (OIDC/SAML) | High | `COMPANY_INTEGRATION.md` |
-| `tokenVersion` on users | Medium | `PRODUCTION_AUTH.md` |
-| PostgreSQL RLS | Medium | — |
-| Real file upload (S3/blob + AV scan) | Medium | — |
-| Centralized logging / APM / alerts | Medium | — |
-| Role CRUD in admin UI | Low | `AGENTS.md` |
-| POST new templates from admin UI | Low | MVP scope |
-| Native mobile / email notifications | Low | — |
-
----
-
-## Security headers responsibility
-
-| Layer | Owner |
-|-------|--------|
-| API | `helmet()` in `backend/src/main.ts` |
-| Next.js portals | `next.config.mjs` security headers |
-| Production TLS / HSTS | **Reverse proxy** (nginx, ALB, Cloudflare, etc.) — required for real HTTPS |
-
----
-
-## Health endpoint contract
-
-`GET /health` (public, not throttled):
-
-```json
-{ "status": "ok", "service": "RequestFlow API" }
-```
-
-No database connectivity, version, or user data exposed (by design for load balancers).
+Smoke: admin dashboard → user creates request → manager inbox → assign → milestones → ready for review → requester approves. Admin **System Logs** at `/logs`.

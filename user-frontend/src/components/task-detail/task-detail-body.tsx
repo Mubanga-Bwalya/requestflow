@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { taskNextStep } from "@/lib/request-detail-copy";
+import { canManagerMarkReadyForReview } from "@/lib/request-work-utils";
+import type { RequestStatus } from "@/types/request";
 import type { Assignment } from "@/types/task";
 
 type Props = {
   assignment: Assignment;
+  requestStatus?: RequestStatus;
+  canManageInbox?: boolean;
   userId: string | undefined;
   saving: boolean;
   onAddOpen: () => void;
@@ -21,6 +25,8 @@ type Props = {
 
 export function TaskDetailBody({
   assignment,
+  requestStatus = "IN_PROGRESS",
+  canManageInbox = false,
   userId,
   saving,
   onAddOpen,
@@ -37,9 +43,8 @@ export function TaskDetailBody({
 
   const canMarkReady =
     Boolean(userId) &&
-    assignment.status !== "READY_FOR_REVIEW" &&
-    assignment.status !== "COMPLETED" &&
-    !saving;
+    !saving &&
+    canManagerMarkReadyForReview(canManageInbox, requestStatus, assignment.status);
 
   return (
     <div className="space-y-5">

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { resolveApiBaseUrl } from "@/lib/api-base-url";
+import { reportClientApiFailure } from "@/lib/report-client-error";
 import { clearSession, getAccessToken } from "@/lib/session";
 import { emitSessionExpired } from "@/lib/session-events";
 import { invalidateApiCache } from "@/lib/query-cache";
@@ -21,13 +22,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
+    if (axios.isAxiosError(error)) {
       const url = error.config?.url ?? "";
-      if (!url.includes("/auth/login")) {
+      if (error.response?.status === 401 && !url.includes("/auth/login")) {
         clearSession();
         invalidateApiCache();
         emitSessionExpired();
       }
+      reportClientApiFailure(error);
     }
     return Promise.reject(error);
   },

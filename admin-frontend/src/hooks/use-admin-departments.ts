@@ -61,6 +61,7 @@ export function useAdminDepartments() {
   const [deptUsers, setDeptUsers] = useState<{ id: string; fullName: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fieldErrors = useMemo(() => validateDeptForm(form), [form]);
   const canSave = Object.keys(fieldErrors).length === 0;
@@ -74,6 +75,7 @@ export function useAdminDepartments() {
     } else {
       setLoading(true);
     }
+    setLoadError(null);
     try {
       const [paged, all] = await Promise.all([
         fetchDepartmentsPage({ page, limit: LIST_PAGE_SIZE, activeOnly: false }),
@@ -81,8 +83,11 @@ export function useAdminDepartments() {
       ]);
       setResult(paged);
       setAllDepartments(all);
-    } catch {
-      if (!cached) setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+    } catch (e) {
+      if (!cached) {
+        setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+        setLoadError(apiErrorMessage(e, "Could not load departments. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -99,6 +104,7 @@ export function useAdminDepartments() {
       setLoading(true);
     }
 
+    setLoadError(null);
     void (async () => {
       try {
         const [paged, all] = await Promise.all([
@@ -109,9 +115,10 @@ export function useAdminDepartments() {
           setResult(paged);
           setAllDepartments(all);
         }
-      } catch {
+      } catch (e) {
         if (!cancelled && !cached) {
           setResult({ items: [], total: 0, page: 1, totalPages: 1 });
+          setLoadError(apiErrorMessage(e, "Could not load departments. Please try again."));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -206,6 +213,8 @@ export function useAdminDepartments() {
     deptUsers,
     saving,
     error,
+    loadError,
+    reload,
     openAdd,
     openEdit,
     closeDialog,

@@ -1,27 +1,21 @@
 # RequestFlow — User portal
 
-Employee and manager portal: create requests, department inbox, assigned tasks, notifications.
+Employee and **appointed department manager** portal (:3000) for internal company requests and assigned tasks.
 
-## Quick start
+**Documentation:** [`../README.md`](../README.md) · [`../docs/SETUP.md`](../docs/SETUP.md)
 
 ```bash
 cp .env.example .env.local
-npm install
-npm run dev
+npm run dev    # or: npm run dev:user from repo root
 ```
 
-Open **http://localhost:3000**. Backend on **http://localhost:4000**.
+Open http://localhost:3000 — API must run on :4000.
 
-Example login: `jane@requestflow.local` / password `requestflow`.
+**Workflow notes:**
+- **Department inbox** is for users appointed as `manager_user_id` on a department — not for everyone with a “Manager” role name.
+- **100% milestone progress** does not complete the request; the manager marks ready for review and the requester approves.
+- Copy `.env.example` → `.env.local` and set `NEXT_PUBLIC_SHOW_DEMO_HINTS=true` for dev login hints (restart dev server after creating `.env.local`). Never enable in production builds.
 
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Dev server on port 3000 (webpack — recommended on Windows / OneDrive) |
-| `npm run dev:turbo` | Turbopack dev (optional; faster on non-synced paths) |
-| `npm run build` | Production build |
-
-## Agent handover
-
-[`AGENTS.md`](AGENTS.md)
+**UX notes:**
+- Dashboard, requests, tasks, and department inbox show a red error banner when API calls fail (with Retry). Empty states appear only for genuine zero results.
+- Missing-information answers use field-type-aware inputs (date, number, long text, etc.) when the original template field type is known.

@@ -8,7 +8,10 @@ type ApiUser = {
   fullName: string;
   email: string;
   departmentName: string | null;
+  inboxDepartmentName?: string | null;
+  managedDepartmentNames?: string[];
   roleName: string | null;
+  jobTitle?: string | null;
 };
 
 type LoginResponse = {
@@ -25,7 +28,10 @@ function toSession(data: LoginResponse): AppSession {
     email: data.user.email,
     fullName: data.user.fullName,
     roleName: data.user.roleName,
+    jobTitle: data.user.jobTitle ?? null,
     departmentName: data.user.departmentName,
+    inboxDepartmentName: data.user.inboxDepartmentName ?? null,
+    managedDepartmentNames: data.user.managedDepartmentNames ?? [],
   };
 }
 
@@ -64,6 +70,9 @@ export async function fetchCurrentUser(): Promise<AppSession | null> {
     email: data.email,
     fullName: data.fullName,
     roleName: data.roleName,
+    jobTitle: data.jobTitle ?? null,
     departmentName: data.departmentName,
+    inboxDepartmentName: data.inboxDepartmentName ?? null,
+    managedDepartmentNames: data.managedDepartmentNames ?? [],
   };
 }

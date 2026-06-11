@@ -11,7 +11,9 @@ export function requestIdMiddleware(
 ): void {
   const incoming = req.header('x-request-id')?.trim();
   const requestId =
-    incoming && incoming.length <= 64 && !incoming.includes('*') ? incoming : randomUUID();
+    incoming && incoming.length <= 64 && !incoming.includes('*')
+      ? incoming
+      : randomUUID();
   req.requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
   next();

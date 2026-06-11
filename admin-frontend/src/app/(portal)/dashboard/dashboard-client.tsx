@@ -15,6 +15,8 @@ import {
   type DashboardSummaryItem,
   type SystemEventItem,
 } from "@/lib/admin-api";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
+import { apiErrorMessage } from "@/lib/api-error";
 import { formatRelativeTime } from "@/lib/utils";
 
 export function AdminDashboardClient() {
@@ -22,6 +24,7 @@ export function AdminDashboardClient() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [systemEvents, setSystemEvents] = useState<SystemEventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +38,7 @@ export function AdminDashboardClient() {
       setLoading(true);
     }
 
+    setError(null);
     Promise.all([fetchAdminDashboard(10), fetchAdminSystemEvents({ page: 1, limit: 12 })])
       .then(([dash, events]) => {
         if (cancelled) return;
@@ -42,11 +46,12 @@ export function AdminDashboardClient() {
         setActivity(dash.activity ?? []);
         setSystemEvents(events.items);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled || cached) return;
         setSummary([]);
         setActivity([]);
         setSystemEvents([]);
+        setError(apiErrorMessage(err, "Could not load the admin dashboard. Ensure the API is running."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -70,6 +75,7 @@ export function AdminDashboardClient() {
         }
       />
       <div className="space-y-6">
+        <ApiErrorBanner message={error} />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {loading
             ? Array.from({ length: 6 }, (_, i) => (
@@ -127,11 +133,11 @@ export function AdminDashboardClient() {
                 <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
               </Link>
             </div>
-            <p className="mt-1 text-xs text-muted">
-              Recent server failures. Apply <code className="text-xs">008_system_events.sql</code> if empty.
-            </p>
+            <p className="mt-1 text-xs text-muted">Recent server failures and warnings from RequestFlow.</p>
             {loading ? (
               <p className="mt-3 text-sm text-muted">Loading…</p>
+            ) : error ? (
+              <p className="mt-3 text-sm text-muted">Dashboard data could not be loaded.</p>
             ) : systemEvents.length ? (
               <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
                 {systemEvents.map((ev) => (
@@ -166,6 +172,8 @@ export function AdminDashboardClient() {
             <p className="text-sm font-bold text-brand-dark">Recent Activity</p>
             {loading ? (
               <p className="mt-3 text-sm text-muted">Loading…</p>
+            ) : error ? (
+              <p className="mt-3 text-sm text-muted">Activity could not be loaded.</p>
             ) : activity.length ? (
               <ul className="mt-3 space-y-3 border-l-2 border-brand-primary/20 pl-4">
                 {activity.map((a) => (

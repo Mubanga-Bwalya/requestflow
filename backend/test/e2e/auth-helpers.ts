@@ -26,8 +26,8 @@ export function authHeader(token: string): { Authorization: string } {
   return { Authorization: `Bearer ${token}` };
 }
 
-export async function loginJane(app: INestApplication<App>) {
-  return loginAs(app, EMAILS.jane);
+export async function loginMusa(app: INestApplication<App>) {
+  return loginAs(app, EMAILS.musa);
 }
 
 export async function loginHenry(app: INestApplication<App>) {

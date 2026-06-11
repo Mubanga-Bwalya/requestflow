@@ -15,6 +15,8 @@ export type Assignment = {
   id: string;
   title: string;
   relatedRequest: string;
+  /** Present on API list/detail payloads — used for unified request navigation. */
+  requestId?: string;
   department: string;
   status: "ASSIGNED" | "IN_PROGRESS" | "READY_FOR_REVIEW" | "COMPLETED" | "REOPENED" | "OVERDUE";
   progress: number;

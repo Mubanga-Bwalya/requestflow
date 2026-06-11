@@ -1,18 +1,13 @@
 -- =============================================================================
--- RequestFlow — Set demo passwords for existing databases
+-- DISABLED — plaintext password seed (historical)
 -- =============================================================================
--- Run if 002 was applied before auth passwords were added.
--- Sets password_hash to plain-text "requestflow" for all seeded demo emails.
+-- This file no longer modifies data. The old script is quarantined under
+-- backend/database/deprecated/005_auth_passwords.sql
+--
+-- To bcrypt-hash legacy plaintext password_hash values (one-time):
+--   npm run hash-passwords --workspace=backend
+--
+-- Never re-enable plaintext password writes in SQL or seed scripts.
 -- =============================================================================
 
-UPDATE users
-SET password_hash = 'requestflow', updated_at = NOW()
-WHERE email IN (
-  'admin@requestflow.local',
-  'jane@requestflow.local',
-  'henry@requestflow.local',
-  'mary@requestflow.local',
-  'helen@requestflow.local',
-  'mark@requestflow.local',
-  'musa@requestflow.local'
-);
+SELECT 1;

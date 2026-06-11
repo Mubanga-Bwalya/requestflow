@@ -10,7 +10,7 @@ export const SEED = {
   },
   users: {
     admin: 'c1111111-1111-4111-8111-111111110001',
-    jane: 'c1111111-1111-4111-8111-111111110002',
+    musaMkt: 'c1111111-1111-4111-8111-111111110007',
     henryHr: 'c1111111-1111-4111-8111-111111110003',
     maryMkt: 'c1111111-1111-4111-8111-111111110004',
     helenHr: 'c1111111-1111-4111-8111-111111110005',
@@ -26,10 +26,9 @@ export const PASSWORD = 'requestflow';
 
 export const EMAILS = {
   admin: 'admin@requestflow.local',
-  jane: 'jane@requestflow.local',
+  musa: 'musa@requestflow.local',
   henry: 'henry@requestflow.local',
   mary: 'mary@requestflow.local',
   helen: 'helen@requestflow.local',
   mark: 'mark@requestflow.local',
-  musa: 'musa@requestflow.local',
 } as const;

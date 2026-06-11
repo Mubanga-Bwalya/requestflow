@@ -76,5 +76,14 @@ describe('request-workflow-guards', () => {
         }),
       ).toThrow(BadRequestException);
     });
+
+    it('allows READY_FOR_REVIEW when assignment was sent back (REOPENED)', () => {
+      expect(() =>
+        assertRequestStatusAlignedWithAssignment('READY_FOR_REVIEW', {
+          status: 'REOPENED',
+          progressPercentage: 40,
+        }),
+      ).not.toThrow();
+    });
   });
 });

@@ -18,6 +18,15 @@ export function mapAssignmentStatusForUi(status: AssignmentStatus): string {
   return status;
 }
 
+/** Milestone progress updates only; ready-for-review is an explicit manager action. */
+export function resolveAssignmentStatusFromProgress(
+  priorStatus: AssignmentStatus,
+  progressPct: number,
+): AssignmentStatus {
+  if (progressPct > 0 && priorStatus === 'ASSIGNED') return 'IN_PROGRESS';
+  return priorStatus;
+}
+
 export function recomputeAssignmentProgress(
   milestones: { progressPercentage: number }[],
 ): number {
@@ -30,33 +39,12 @@ export function recomputeAssignmentProgress(
   return Math.round(avg);
 }
 
-export async function syncRequestIfAssignmentCompleted(
-  tx: Prisma.TransactionClient,
-  requestId: string,
-  assignmentStatus: AssignmentStatus,
-) {
-  if (assignmentStatus !== 'COMPLETED') return;
-  await tx.request.update({
-    where: { id: requestId },
-    data: {
-      status: 'COMPLETED',
-      currentStage: 'Work completed',
-      progressPercentage: 100,
-      completedAt: new Date(),
-    },
-  });
-}
-
+/** Sync request progress only — never auto-complete the request from milestone progress. */
 export async function syncRequestProgressFromAssignment(
   tx: Prisma.TransactionClient,
   requestId: string,
   progressPct: number,
-  assignmentStatus: AssignmentStatus,
 ) {
-  if (assignmentStatus === 'COMPLETED') {
-    await syncRequestIfAssignmentCompleted(tx, requestId, assignmentStatus);
-    return;
-  }
   await tx.request.update({
     where: { id: requestId },
     data: { progressPercentage: progressPct },

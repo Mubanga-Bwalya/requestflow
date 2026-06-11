@@ -27,7 +27,6 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/requestflow
       JWT_SECRET: ci-test-jwt-secret-minimum-32-characters-long
       CORS_ORIGINS: http://localhost:3000,http://localhost:3001
-      ALLOW_LEGACY_PLAINTEXT_PASSWORDS: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,19 +37,20 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Apply database SQL
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/001_create_schema.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/002_seed_core_data.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/004_system_settings.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/006_performance_indexes.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/007_request_number_sequences.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/008_system_events.sql
-          PGPASSWORD=postgres psql -h localhost -U postgres -d requestflow -f backend/database/010_performance_indexes.sql
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: requestflow
+        run: bash backend/database/apply-migrations.sh
       - run: npm ci
         working-directory: backend
-      - run: npm run prisma:validate
-        working-directory: backend
       - run: npm run prisma:generate
+        working-directory: backend
+      - name: Seed demo users (CI fresh DB)
+        run: npm run db:seed -- --reset-passwords
+        working-directory: backend
+      - run: npm run prisma:validate
         working-directory: backend
       - run: npm run typecheck
         working-directory: backend

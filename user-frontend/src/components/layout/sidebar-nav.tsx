@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { memo, Suspense, useMemo } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ClipboardList, FilePlus, Inbox, LayoutDashboard, List } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { isManagerRole } from "@/lib/role-utils";
+import { hasManagerInbox } from "@/lib/role-utils";
 
 const myWorkItems = [
   { label: "Dashboard", href: "/dashboard", hint: "Overview and next steps", icon: LayoutDashboard },
@@ -21,7 +21,20 @@ const managerItem = {
   icon: Inbox,
 } as const;
 
-function resolveActiveHref(pathname: string, hrefs: string[]): string | null {
+function isRequestDetailPath(pathname: string): boolean {
+  return pathname.startsWith("/requests/") && pathname !== "/requests/create";
+}
+
+function resolveActiveHref(
+  pathname: string,
+  hrefs: string[],
+  from: string | null,
+): string | null {
+  if (isRequestDetailPath(pathname)) {
+    if (from === "tasks") return "/tasks";
+    if (from === "inbox") return "/department-inbox";
+  }
+
   const matches = hrefs.filter((href) => pathname === href || pathname.startsWith(`${href}/`));
   if (!matches.length) return null;
   return matches.sort((a, b) => b.length - a.length)[0]!;
@@ -62,19 +75,11 @@ const NavLink = memo(function NavLink({ label, href, hint, icon: Icon, active, o
 
 type Props = { onNavigate?: () => void };
 
-export const SidebarNav = memo(function SidebarNav({ onNavigate }: Props) {
-  const pathname = usePathname();
-  const { state } = useAuth();
-  const isManager = isManagerRole(state.auth.role);
-
-  const navHrefs = useMemo((): string[] => {
-    const hrefs: string[] = myWorkItems.map((i) => i.href);
-    if (isManager) hrefs.push(managerItem.href);
-    return hrefs;
-  }, [isManager]);
-
-  const activeHref = resolveActiveHref(pathname, navHrefs);
-
+const SidebarNavContent = memo(function SidebarNavContent({
+  onNavigate,
+  activeHref,
+  isManager,
+}: Props & { activeHref: string | null; isManager: boolean }) {
   return (
     <nav className="space-y-5">
       <div>
@@ -112,5 +117,46 @@ export const SidebarNav = memo(function SidebarNav({ onNavigate }: Props) {
         </div>
       ) : null}
     </nav>
+  );
+});
+
+const SidebarNavInner = memo(function SidebarNavInner({ onNavigate }: Props) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { state } = useAuth();
+  const isManager = hasManagerInbox(state.auth);
+
+  const navHrefs = useMemo((): string[] => {
+    const hrefs: string[] = myWorkItems.map((i) => i.href);
+    if (isManager) hrefs.push(managerItem.href);
+    return hrefs;
+  }, [isManager]);
+
+  const activeHref = resolveActiveHref(pathname, navHrefs, searchParams.get("from"));
+
+  return <SidebarNavContent onNavigate={onNavigate} activeHref={activeHref} isManager={isManager} />;
+});
+
+const SidebarNavFallback = memo(function SidebarNavFallback({ onNavigate }: Props) {
+  const pathname = usePathname();
+  const { state } = useAuth();
+  const isManager = hasManagerInbox(state.auth);
+
+  const navHrefs = useMemo((): string[] => {
+    const hrefs: string[] = myWorkItems.map((i) => i.href);
+    if (isManager) hrefs.push(managerItem.href);
+    return hrefs;
+  }, [isManager]);
+
+  const activeHref = resolveActiveHref(pathname, navHrefs, null);
+
+  return <SidebarNavContent onNavigate={onNavigate} activeHref={activeHref} isManager={isManager} />;
+});
+
+export const SidebarNav = memo(function SidebarNav(props: Props) {
+  return (
+    <Suspense fallback={<SidebarNavFallback {...props} />}>
+      <SidebarNavInner {...props} />
+    </Suspense>
   );
 });

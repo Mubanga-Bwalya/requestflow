@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Tab, Tabs } from "@/components/ui/tabs";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { useAdminTemplates } from "@/hooks/use-admin-templates";
 import { updateTemplateActive } from "@/lib/templates-api";
 
@@ -66,11 +67,14 @@ export default function Page() {
         </div>
       </div>
 
+      <ApiErrorBanner message={t.loadError} onRetry={() => void t.reload()} className="mb-4" />
+
       {t.loading ? (
         <p className="text-sm text-muted">Loading templates…</p>
-      ) : t.filtered.length ? (
+      ) : t.loadError ? null : t.filtered.length ? (
         <>
           <DataTable
+            caption="Request templates"
             columns={[
               { key: "name", label: "Template Name" },
               { key: "department", label: "Department" },

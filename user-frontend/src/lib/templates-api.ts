@@ -47,7 +47,7 @@ function mapField(f: ApiField): RequestFieldDef {
     type: f.fieldType as RequestFieldDef["type"],
     required: f.isRequired,
     options: parseOptions(f.options),
-    placeholder: f.helpText ?? undefined,
+    helpText: f.helpText ?? undefined,
   };
 }
 

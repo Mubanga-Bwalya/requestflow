@@ -26,7 +26,7 @@ export function buildNextSteps(
           id: `inbox-${r.id}`,
           priority: 1,
           label: `Review ${r.requestNumber} — ${r.title}`,
-          href: "/department-inbox",
+          href: `/requests/${r.id}?from=inbox`,
           cta: "Review",
         });
       } else if (canAssignRequest(r)) {
@@ -34,7 +34,7 @@ export function buildNextSteps(
           id: `assign-${r.id}`,
           priority: 2,
           label: `Assign team for ${r.requestNumber}`,
-          href: "/department-inbox",
+          href: `/requests/${r.id}?from=inbox`,
           cta: "Assign",
         });
       }
@@ -69,7 +69,7 @@ export function buildNextSteps(
         id: `task-${a.id}`,
         priority: 5,
         label: `Start task: ${a.title}`,
-        href: `/tasks/${a.id}`,
+        href: a.requestId ? `/requests/${a.requestId}?from=tasks` : `/tasks/${a.id}`,
         cta: "Open",
       });
     }

@@ -32,7 +32,7 @@ export function UserMenu({ open, onToggle, onClose, displayName, role, avatarDat
     <div className="relative z-50" ref={menuRef}>
       <button
         type="button"
-        className="rf-focus-ring flex min-h-11 items-center gap-3 rounded-control border border-zamtel-border bg-white px-3 py-2 shadow-card transition-[colors,transform,box-shadow] duration-200 hover:-translate-y-px hover:border-brand-primary/30 hover:bg-brand-primary/5 hover:shadow-md motion-reduce:hover:translate-y-0"
+        className="rf-clickable rf-focus-ring flex min-h-11 items-center gap-3 rounded-control border border-zamtel-border bg-white px-3 py-2 shadow-card transition-[colors,transform,box-shadow] duration-200 hover:-translate-y-px hover:border-brand-primary/30 hover:bg-brand-primary/5 hover:shadow-md motion-reduce:hover:translate-y-0"
         aria-label="User menu"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -48,7 +48,9 @@ export function UserMenu({ open, onToggle, onClose, displayName, role, avatarDat
         </div>
         <div className="hidden text-right sm:block">
           <p className="text-sm font-medium text-slate-900">{displayName}</p>
-          <p className="text-xs text-slate-600">{role}</p>
+          <p className="text-xs text-slate-600" title={role}>
+            {role}
+          </p>
         </div>
         <UserRound className="h-4 w-4 text-brand-primary sm:hidden" aria-hidden />
       </button>

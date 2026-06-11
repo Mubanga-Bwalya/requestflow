@@ -1,7 +1,8 @@
 export const CacheKeys = {
   authUser: (userId: string) => `auth:user:${userId}`,
   workspaceSummary: (userId: string) => `workspace:summary:${userId}`,
-  notificationUnread: (userId: string) => `notifications:unread-count:${userId}`,
+  notificationUnread: (userId: string) =>
+    `notifications:unread-count:${userId}`,
   departmentsActive: 'departments:active',
   templatesDepartment: (departmentId: string) =>
     `templates:department:${departmentId}`,
@@ -9,8 +10,7 @@ export const CacheKeys = {
   settingsSystem: 'settings:system',
   adminDashboardSummary: 'admin:dashboard:summary',
   adminReportsPrefix: 'admin:reports:',
-  adminReports: (departmentName: string) =>
-    `admin:reports:${departmentName}`,
+  adminReports: (departmentName: string) => `admin:reports:${departmentName}`,
 } as const;
 
 export const CacheTtl = {

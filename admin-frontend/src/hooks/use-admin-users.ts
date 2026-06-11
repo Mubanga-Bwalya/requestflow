@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { normalizeEmail } from "@/lib/admin-form-utils";
 import {
-  isValidEmail,
-  normalizeEmail,
-  USER_NAME_MAX,
-  validateUserPassword,
-} from "@/lib/admin-form-utils";
+  emptyUserForm,
+  validateUserForm,
+  type UserFormState,
+} from "@/lib/admin-users-form";
 import { fetchDepartments, type ApiDepartment } from "@/lib/departments-api";
 import { normalizeAssignableRole } from "@/lib/assignable-roles";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -15,49 +15,7 @@ import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { apiErrorMessage } from "@/lib/api-error";
 import { createUser, fetchUsers, updateUser, type ApiUser } from "@/lib/users-api";
 
-export type UserFormState = {
-  name: string;
-  email: string;
-  jobTitle: string;
-  externalEmployeeId: string;
-  department: string;
-  role: string;
-  status: "Active" | "Inactive";
-  password: string;
-};
-
-const emptyForm = (defaultDept: string): UserFormState => ({
-  name: "",
-  email: "",
-  jobTitle: "",
-  externalEmployeeId: "",
-  department: defaultDept,
-  role: "",
-  status: "Active",
-  password: "",
-});
-
-function validateForm(form: UserFormState, editing: boolean) {
-  const errors: Partial<Record<keyof UserFormState, string>> = {};
-  const name = form.name.trim();
-  const email = normalizeEmail(form.email);
-
-  if (!name) errors.name = "Full name is required.";
-  else if (name.length > USER_NAME_MAX) errors.name = `Name must be ${USER_NAME_MAX} characters or fewer.`;
-
-  if (!email) errors.email = "Email is required.";
-  else if (!isValidEmail(email)) errors.email = "Enter a valid email address.";
-
-  if (!form.department) errors.department = "Select a department.";
-  if (!form.role) errors.role = "Select a role.";
-
-  if (!editing) {
-    const passwordError = validateUserPassword(form.password);
-    if (passwordError) errors.password = passwordError;
-  }
-
-  return errors;
-}
+export type { UserFormState };
 
 export function useAdminUsers() {
   const [result, setResult] = useState({ items: [] as ApiUser[], total: 0, page: 1, totalPages: 1 });
@@ -71,14 +29,14 @@ export function useAdminUsers() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ApiUser | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [form, setForm] = useState<UserFormState>(emptyForm(""));
+  const [form, setForm] = useState<UserFormState>(emptyUserForm(""));
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const defaultDept = departments[0]?.name ?? "";
 
-  const fieldErrors = useMemo(() => validateForm(form, Boolean(editing)), [form, editing]);
+  const fieldErrors = useMemo(() => validateUserForm(form, Boolean(editing)), [form, editing]);
   const canSave = Object.keys(fieldErrors).length === 0;
 
   const loadMeta = useCallback(async () => {
@@ -175,7 +133,7 @@ export function useAdminUsers() {
   function openAdd() {
     setEditing(null);
     setShowAdvanced(false);
-    setForm(emptyForm(defaultDept));
+    setForm(emptyUserForm(defaultDept));
     setError(null);
     setOpen(true);
   }
@@ -199,7 +157,7 @@ export function useAdminUsers() {
 
   async function save() {
     setError(null);
-    const errors = validateForm(form, Boolean(editing));
+    const errors = validateUserForm(form, Boolean(editing));
     if (Object.keys(errors).length) return;
 
     setSaving(true);

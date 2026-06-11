@@ -8,6 +8,7 @@ import {
   updateRequestStatus,
   type RequestDetail,
 } from "@/lib/requests-api";
+import { invalidateApiCache } from "@/lib/query-cache";
 
 export function useRequestDetail(requestId: string, userId: string | undefined) {
   const [req, setReq] = useState<RequestDetail | null>(null);
@@ -34,6 +35,12 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
       ),
     );
   }, []);
+
+  const reload = useCallback(async () => {
+    invalidateApiCache(`request:${requestId}`);
+    const data = await fetchRequestDetail(requestId);
+    applyDetail(data);
+  }, [requestId, applyDetail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +141,7 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
     submitMissingInfo,
     approve,
     reopen,
+    reload,
     canReviewCompletion,
   };
 }

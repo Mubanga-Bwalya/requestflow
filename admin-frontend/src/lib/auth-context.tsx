@@ -56,6 +56,7 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "SET_SESSION": {
       saveSession(action.payload);
+      invalidateApiCache();
       return { ...state, auth: sessionToAuth(action.payload) };
     }
     case "LOGOUT": {

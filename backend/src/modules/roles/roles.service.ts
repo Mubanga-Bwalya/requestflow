@@ -14,7 +14,12 @@ export class RolesService {
   async findAll(activeOnly = true, assignableOnly = false) {
     const cacheKey = `${CacheKeys.rolesAll}:${activeOnly}:${assignableOnly}`;
     const cached = await this.cache.getJson<
-      { id: string; name: string; description: string | null; isActive: boolean }[]
+      {
+        id: string;
+        name: string;
+        description: string | null;
+        isActive: boolean;
+      }[]
     >(cacheKey);
     if (cached) return cached;
 

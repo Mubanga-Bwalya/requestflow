@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 export function DetailField({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className={cn("py-2.5", className)}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-zamtel-muted">{label}</dt>
-      <dd className="mt-1 text-sm font-medium leading-relaxed text-brand-dark">{value}</dd>
+      <dt className="text-xs font-bold uppercase tracking-wide text-brand-dark">{label}</dt>
+      <dd className="mt-1.5 text-sm font-medium leading-relaxed text-zamtel-text">{value}</dd>
     </div>
   );
 }

@@ -8,7 +8,8 @@ import { ThrottlerGuard } from '@nestjs/throttler';
  */
 @Injectable()
 export class ConditionalThrottlerGuard extends ThrottlerGuard {
-  protected async shouldSkip(context: ExecutionContext): Promise<boolean> {
-    return process.env.E2E_DISABLE_THROTTLE === 'true';
+  protected shouldSkip(context: ExecutionContext): Promise<boolean> {
+    void context;
+    return Promise.resolve(process.env.E2E_DISABLE_THROTTLE === 'true');
   }
 }

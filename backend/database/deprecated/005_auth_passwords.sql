@@ -1,0 +1,14 @@
+-- =============================================================================
+-- QUARANTINED — DO NOT RUN
+-- =============================================================================
+-- This script previously wrote plaintext "requestflow" into password_hash.
+-- It is kept only as historical reference. Never apply in any environment.
+--
+-- One-time migration for legacy plaintext hashes:
+--   npm run hash-passwords --workspace=backend
+--
+-- Demo passwords (local only): npm run db:seed --workspace=backend
+--   Use --reset-passwords only when you intentionally reset demo credentials.
+-- =============================================================================
+
+-- Intentionally empty — destructive UPDATE removed.

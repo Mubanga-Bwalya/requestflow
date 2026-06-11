@@ -65,8 +65,11 @@ export function DepartmentFormDialog({
       {error ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
       <div className="grid gap-4">
         <div>
-          <label className={fieldLabelClassName}>Department name *</label>
+          <label className={fieldLabelClassName} htmlFor="dept-form-name">
+            Department name *
+          </label>
           <Input
+            id="dept-form-name"
             className="mt-1"
             maxLength={DEPT_NAME_MAX}
             autoComplete="off"
@@ -80,8 +83,15 @@ export function DepartmentFormDialog({
         {mode === "edit" ? (
           <>
             <div>
-              <label className={fieldLabelClassName}>Manager (optional)</label>
-              <Select className="mt-1" value={form.managerUserId} onChange={(e) => setForm((p) => ({ ...p, managerUserId: e.target.value }))}>
+              <label className={fieldLabelClassName} htmlFor="dept-form-manager">
+                Department manager
+              </label>
+              <Select
+                id="dept-form-manager"
+                className="mt-1"
+                value={form.managerUserId}
+                onChange={(e) => setForm((p) => ({ ...p, managerUserId: e.target.value }))}
+              >
                 <option value="">No manager</option>
                 {deptUsers.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -89,12 +99,17 @@ export function DepartmentFormDialog({
                   </option>
                 ))}
               </Select>
-              <p className="mt-1 text-xs text-zamtel-muted">Managers see the department inbox for this team.</p>
+              <p className="mt-1 text-xs text-zamtel-muted">
+                Select who manages this department&apos;s inbox. Assignment is manual — not inferred from user role.
+              </p>
               <FieldError message={fieldErrors.managerUserId} />
             </div>
             <div>
-              <label className={fieldLabelClassName}>Status</label>
+              <label className={fieldLabelClassName} htmlFor="dept-form-status">
+                Status
+              </label>
               <Select
+                id="dept-form-status"
                 className="mt-1"
                 value={form.isActive ? "Active" : "Inactive"}
                 onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.value === "Active" }))}

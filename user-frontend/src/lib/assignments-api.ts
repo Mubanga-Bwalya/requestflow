@@ -1,8 +1,9 @@
+import { emitAppRefresh } from "@/lib/app-refresh";
 import { api } from "@/lib/api";
 import { type PaginatedResponse } from "@/lib/pagination";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { invalidateNotificationCaches } from "@/lib/notifications-api";
-import { cachedApi, invalidateApiCache } from "@/lib/query-cache";
+import { invalidateApiCache } from "@/lib/query-cache";
 import type { ListTabBucket } from "@/lib/request-status-groups";
 import type { Assignment } from "@/types/task";
 
@@ -10,8 +11,11 @@ export type AssignmentDetail = Assignment & { requestId: string };
 
 function invalidateAssignmentCaches() {
   invalidateApiCache("assignments:");
+  invalidateApiCache("requests:");
   invalidateApiCache("workspace:");
   invalidateNotificationCaches();
+  emitAppRefresh("assignments");
+  emitAppRefresh("requests");
 }
 
 export async function fetchMyAssignments(
@@ -22,19 +26,16 @@ export async function fetchMyAssignments(
   const limit = params?.limit ?? LIST_PAGE_SIZE;
   const tab = params?.tab ?? "ALL";
   const q = params?.q?.trim() ?? "";
-  const key = `assignments:mine:${tab}:${q}:${page}:${limit}`;
-  return cachedApi(key, async () => {
-    const { data } = await api.get<PaginatedResponse<AssignmentDetail>>("/assignments", {
-      params: {
-        page,
-        limit,
-        ...(tab !== "ALL" ? { tab } : {}),
-        ...(q ? { q } : {}),
-      },
-      signal,
-    });
-    return data;
-  }, 15_000);
+  const { data } = await api.get<PaginatedResponse<AssignmentDetail>>("/assignments", {
+    params: {
+      page,
+      limit,
+      ...(tab !== "ALL" ? { tab } : {}),
+      ...(q ? { q } : {}),
+    },
+    signal,
+  });
+  return data;
 }
 
 export async function fetchAssignmentDetail(id: string): Promise<AssignmentDetail> {
@@ -49,7 +50,6 @@ export async function createAssignment(payload: {
 }): Promise<AssignmentDetail> {
   const { data } = await api.post<AssignmentDetail>("/assignments", payload);
   invalidateAssignmentCaches();
-  invalidateApiCache("requests:");
   return data;
 }
 
@@ -82,7 +82,7 @@ export async function addMilestone(
 export async function updateMilestone(
   assignmentId: string,
   milestoneId: string,
-  payload: { status?: string; progress?: number },
+  payload: { status?: string; progress?: number; title?: string },
 ): Promise<AssignmentDetail> {
   const { data } = await api.patch<AssignmentDetail>(
     `/assignments/${assignmentId}/milestones/${milestoneId}`,

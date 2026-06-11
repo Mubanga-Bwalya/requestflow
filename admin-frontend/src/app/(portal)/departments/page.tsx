@@ -7,7 +7,10 @@ import { TableOpenLink } from "@/components/shared/table-open-link";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { PaginationBar } from "@/components/shared/pagination-bar";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useAdminDepartments } from "@/hooks/use-admin-departments";
+import { Building2 } from "lucide-react";
 
 export default function Page() {
   const d = useAdminDepartments();
@@ -20,11 +23,20 @@ export default function Page() {
         actions={<Button onClick={d.openAdd}>Add Department</Button>}
       />
 
+      <ApiErrorBanner message={d.loadError} onRetry={() => void d.reload()} className="mb-4" />
+
       {d.loading ? (
         <p className="text-sm text-muted">Loading departments…</p>
+      ) : d.loadError ? null : d.result.items.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          heading="No departments yet"
+          body="Add a department so teams can receive and manage requests."
+        />
       ) : (
         <>
           <DataTable
+            caption="Departments"
             columns={[
               { key: "name", label: "Department" },
               { key: "templates", label: "Request types" },
