@@ -5,7 +5,7 @@ export function LoginBrandArt() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       <div className="absolute -left-20 top-[12%] h-56 w-56 rounded-full border border-white/10 bg-white/[0.04]" />
-      <div className="absolute -right-16 top-[6%] h-44 w-44 rounded-full border-2 border-brand-lime/25 bg-brand-lime/[0.06]" />
+      <div className="absolute -right-16 top-[6%] h-44 w-44 rounded-full border-2 border-brand-lime/25 bg-brand-lime/[0.06] max-[380px]:hidden" />
       <div className="absolute bottom-[28%] left-[8%] h-28 w-28 rounded-full border border-white/15 bg-brand-primary/20" />
 
       {/* Controlled magenta arc accent */}

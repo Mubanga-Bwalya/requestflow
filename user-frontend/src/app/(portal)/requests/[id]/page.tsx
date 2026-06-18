@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { MilestoneDialogs } from "@/components/task-detail/milestone-dialogs";
 import { RequestDetailBody } from "@/components/request-detail/request-detail-body";
 import { RequestDetailDialogs } from "@/components/request-detail/request-detail-dialogs";
-import { LoadingScreen } from "@/components/shared/loading-screen";
+import { RequestDetailSkeleton } from "@/components/request-detail/request-detail-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
 import { BackButtonLink } from "@/components/ui/back-button-link";
 import { useAssignmentDetail } from "@/hooks/use-assignment-detail";
@@ -15,9 +15,18 @@ import { hasManagerInbox, resolveInboxDepartment } from "@/lib/role-utils";
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
+    <Suspense fallback={<RequestDetailLoadingFallback />}>
       <RequestDetailPageContent />
     </Suspense>
+  );
+}
+
+function RequestDetailLoadingFallback() {
+  return (
+    <>
+      <PageHeader title="Request details" description="Loading request…" />
+      <RequestDetailSkeleton />
+    </>
   );
 }
 
@@ -48,7 +57,12 @@ function RequestDetailPageContent() {
     d.req.department.toLowerCase() === inboxDepartment.toLowerCase();
 
   if (d.loading) {
-    return <PageHeader title="Request details" description="Loading…" />;
+    return (
+      <>
+        <PageHeader title="Request details" description="Loading request…" actions={backAction} />
+        <RequestDetailSkeleton />
+      </>
+    );
   }
 
   if (!d.req || d.error) {

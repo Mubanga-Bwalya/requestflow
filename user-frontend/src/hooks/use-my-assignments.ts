@@ -10,10 +10,16 @@ import {
 import { apiErrorMessage } from "@/lib/api-error";
 import { fetchMyAssignments } from "@/lib/assignments-api";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
+import { peekApiCache, cacheScopeUserId } from "@/lib/query-cache";
 import { type ListTabBucket } from "@/lib/request-status-groups";
 import type { Assignment } from "@/types/task";
 
 const EMPTY = { items: [] as Assignment[], total: 0, page: 1, totalPages: 1 };
+
+function assignmentsCacheKey(page: number, tab: ListTabBucket, debouncedQ: string) {
+  const q = debouncedQ.trim();
+  return `assignments:mine:${cacheScopeUserId()}:${page}:${LIST_PAGE_SIZE}:${tab}:${q}`;
+}
 
 export function useMyAssignments(
   userId: string | undefined,
@@ -22,8 +28,10 @@ export function useMyAssignments(
   debouncedQ: string,
 ) {
   const pathname = usePathname();
-  const [result, setResult] = useState(EMPTY);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = assignmentsCacheKey(page, tab, debouncedQ);
+  const cached = peekApiCache<typeof EMPTY>(cacheKey);
+  const [result, setResult] = useState(cached ?? EMPTY);
+  const [loading, setLoading] = useState(!cached && Boolean(userId));
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
@@ -33,7 +41,16 @@ export function useMyAssignments(
         setLoading(false);
         return;
       }
-      setLoading(true);
+
+      const key = assignmentsCacheKey(page, tab, debouncedQ);
+      const hit = peekApiCache<typeof EMPTY>(key);
+      if (hit) {
+        setResult(hit);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       setError(null);
       try {
         const data = await fetchMyAssignments(
@@ -48,8 +65,10 @@ export function useMyAssignments(
         if (!signal?.aborted) setResult(data);
       } catch (e) {
         if (!signal?.aborted) {
-          setResult(EMPTY);
-          setError(apiErrorMessage(e, "Could not load your tasks. Please try again."));
+          if (!hit) {
+            setResult(EMPTY);
+            setError(apiErrorMessage(e, "Could not load your tasks. Please try again."));
+          }
         }
       } finally {
         if (!signal?.aborted) setLoading(false);

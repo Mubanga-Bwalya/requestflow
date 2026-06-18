@@ -5,6 +5,7 @@ import { ClipboardList, Inbox, List, MessageCircleWarning } from "lucide-react";
 import { DashboardNextStepsPanel } from "@/components/dashboard/dashboard-next-steps-panel";
 import { DashboardRecentRequests, DashboardShortcuts } from "@/components/dashboard/dashboard-sidebar-panels";
 import { DashboardStatSkeletons, StatChip } from "@/components/dashboard/dashboard-stat-chips";
+import { DashboardRecentRequestsSkeleton } from "@/components/shared/skeleton";
 import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { PageHeader } from "@/components/shared/page-header";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -41,8 +42,8 @@ export function DashboardClient() {
   const firstName = displayName.split(" ")[0];
   const actionCount = nextSteps.length;
 
-  const description = ws.loading
-    ? "Loading your overview…"
+  const description = ws.loading && !ws.requests.length
+    ? "Pulling together your latest requests and tasks…"
     : ws.error
       ? "Some dashboard data could not be loaded."
       : actionCount > 0
@@ -105,7 +106,11 @@ export function DashboardClient() {
           <DashboardNextStepsPanel loading={ws.loading} steps={nextSteps} />
           <div className="flex flex-col gap-5 lg:col-span-2">
             <DashboardShortcuts isManager={isManager} />
-            {!ws.loading ? <DashboardRecentRequests requests={recentRequests} /> : null}
+            {ws.loading && !recentRequests.length ? (
+              <DashboardRecentRequestsSkeleton />
+            ) : (
+              <DashboardRecentRequests requests={recentRequests} />
+            )}
           </div>
         </div>
       </div>

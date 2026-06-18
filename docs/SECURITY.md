@@ -1,8 +1,26 @@
 # Security
 
-> **Last updated:** 2026-06-11
+> **Last updated:** 2026-06-18
 
-Related: [`USER_ROLES_AND_PERMISSIONS.md`](USER_ROLES_AND_PERMISSIONS.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DEPLOYMENT.md`](DEPLOYMENT.md)
+Related: [`USER_ROLES_AND_PERMISSIONS.md`](USER_ROLES_AND_PERMISSIONS.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DEPLOYMENT.md`](DEPLOYMENT.md) · [`LOCAL_SERVER_DEPLOYMENT.md`](LOCAL_SERVER_DEPLOYMENT.md)
+
+---
+
+## Summary for supervisors
+
+RequestFlow is designed for **internal use only** on Zamtel’s network. Security is built in layers:
+
+| Protection | What it means |
+|------------|---------------|
+| Login required | Users must sign in with email and password |
+| Role-based access | Employees, managers, and admins see only what their role allows |
+| Server-side enforcement | The API checks every request; the UI cannot bypass rules |
+| Department boundaries | Managers only act on requests for departments they manage |
+| Rate limiting | Login and write operations are throttled against abuse |
+| Audit trail | Important actions and errors are logged |
+| Safe errors | Users see generic messages; details go to system logs |
+
+Full technical detail below. For deployment assumptions: [`LOCAL_SERVER_DEPLOYMENT.md`](LOCAL_SERVER_DEPLOYMENT.md).
 
 ---
 
@@ -13,7 +31,7 @@ Related: [`USER_ROLES_AND_PERMISSIONS.md`](USER_ROLES_AND_PERMISSIONS.md) · [`A
 | Method | JWT Bearer (`Authorization: Bearer <token>`) |
 | Login | `POST /auth/login` — bcrypt password verify |
 | Admin login | `POST /auth/login?adminOnly=true` — role must be `Admin` or `System Admin` |
-| Token storage (client) | `localStorage` (`requestflow_session` / `requestflow_admin_session`) |
+| Token storage (client) | `localStorage` (`requestflow_session` / `requestflow_admin_session`) — **pilot risk:** XSS could exfiltrate JWT; mitigate with CSP, internal network, and planned httpOnly cookie migration |
 | Token expiry | `JWT_EXPIRES_IN` seconds (default 28800 = 8h) |
 | Secret | `JWT_SECRET` — min 32 chars in production; weak defaults rejected at startup |
 | Role in token | **Not trusted** — reloaded from DB in `JwtStrategy.validate()` |
@@ -59,6 +77,8 @@ Full matrix: [`USER_ROLES_AND_PERMISSIONS.md`](USER_ROLES_AND_PERMISSIONS.md).
 | Admin reads | 600 req/min |
 
 Bypass: `E2E_DISABLE_THROTTLE=true` (tests only).
+
+**Account lockout:** Login throttle only (5 req/min). There is **no persistent lockout store** — repeated failures are rate-limited per window, not permanently blocked. Plan SSO or `tokenVersion`/lockout table for wider rollout.
 
 ---
 
@@ -123,6 +143,8 @@ Covered by `backend/test/security.e2e-spec.ts`.
 ## Redis fail-open
 
 If Redis is disabled or unreachable, API serves from PostgreSQL. No auth bypass; possible stale role cache up to ~45s when Redis enabled.
+
+**Operations:** On Redis outage, API continues (fail-open). After Redis recovery, **restart the API** to re-establish the cache client. Redis status is not exposed on `GET /health` — monitor Redis process separately. See [`LOCAL_SERVER_DEPLOYMENT.md`](LOCAL_SERVER_DEPLOYMENT.md#redis-failure-procedure).
 
 ---
 

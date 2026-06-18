@@ -37,7 +37,7 @@ export function useHeaderNotifications(userId: string | undefined) {
     try {
       const count = await fetchUnreadNotificationCount();
       setUnreadCount((prev) => {
-        if (count > prev) emitAppRefresh("requests");
+        if (count > prev) queueMicrotask(() => emitAppRefresh("requests"));
         return count;
       });
     } catch {

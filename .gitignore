@@ -47,3 +47,8 @@ uploads/
 # AI tool state
 .cursor/
 .claude/
+.playwright-mcp/
+
+# Audit script output (regenerated on each run)
+scripts/*-output/
+scripts/tmp-login.html

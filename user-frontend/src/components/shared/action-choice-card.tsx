@@ -20,6 +20,7 @@ export function ActionChoiceCard({
   onClick,
   disabled,
   disabledReason,
+  dataTestId,
 }: {
   title: string;
   description: string;
@@ -27,6 +28,7 @@ export function ActionChoiceCard({
   onClick: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  dataTestId?: string;
 }) {
   const selected = variant === "primary";
 
@@ -36,6 +38,7 @@ export function ActionChoiceCard({
       disabled={disabled}
       onClick={onClick}
       aria-pressed={selected}
+      data-rf-testid={dataTestId}
       className={cn(
         "rf-clickable-tile rf-focus-ring relative w-full px-4 py-3.5",
         disabled ? "cursor-not-allowed opacity-50" : variantClasses[variant],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DataListSkeleton } from "@/components/shared/skeleton";
 import { TemplateCreateDialog } from "@/components/admin-templates/template-create-dialog";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
 import { PaginationBar } from "@/components/shared/pagination-bar";
@@ -69,8 +70,8 @@ export default function Page() {
 
       <ApiErrorBanner message={t.loadError} onRetry={() => void t.reload()} className="mb-4" />
 
-      {t.loading ? (
-        <p className="text-sm text-muted">Loading templates…</p>
+      {t.loading && !t.filtered.length ? (
+        <DataListSkeleton rowCount={5} columnCount={5} />
       ) : t.loadError ? null : t.filtered.length ? (
         <>
           <DataTable

@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { EmptyState } from "@/components/shared/empty-state";
-import { LoadingScreen } from "@/components/shared/loading-screen";
+import { DataListSkeleton, ListCountSkeleton } from "@/components/shared/skeleton";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
 import { TableOpenLink } from "@/components/shared/table-open-link";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,7 +20,7 @@ import { LIST_TAB_LABELS, statusLabel, type ListTabBucket } from "@/lib/request-
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
+    <Suspense fallback={<DataListSkeleton rowCount={4} columnCount={8} />}>
       <TasksPageContent />
     </Suspense>
   );
@@ -80,7 +80,9 @@ function TasksPageContent() {
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by title or request #..." />
           </div>
           <div className="text-sm text-slate-600">
-            {loading ? "Loading…" : (
+            {loading && !rows.length ? (
+              <ListCountSkeleton />
+            ) : (
               <>
                 Showing <span className="font-medium text-brand-dark">{showingCount}</span> task(s)
               </>
@@ -100,8 +102,8 @@ function TasksPageContent() {
 
         <Card>
           <CardContent className="space-y-3">
-            {loading ? (
-              <p className="text-sm text-slate-600">Loading tasks…</p>
+            {loading && !rows.length ? (
+              <DataListSkeleton rowCount={5} columnCount={8} />
             ) : error ? null : rows.length ? (
               <>
                 <DataTable

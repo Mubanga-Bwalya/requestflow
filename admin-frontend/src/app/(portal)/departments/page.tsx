@@ -1,5 +1,6 @@
 "use client";
 
+import { DataListSkeleton } from "@/components/shared/skeleton";
 import { DepartmentFormDialog } from "@/components/admin-departments/department-form-dialog";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
 import { TableActionButton } from "@/components/shared/table-action-button";
@@ -25,8 +26,8 @@ export default function Page() {
 
       <ApiErrorBanner message={d.loadError} onRetry={() => void d.reload()} className="mb-4" />
 
-      {d.loading ? (
-        <p className="text-sm text-muted">Loading departments…</p>
+      {d.loading && !d.result.items.length ? (
+        <DataListSkeleton rowCount={5} columnCount={7} />
       ) : d.loadError ? null : d.result.items.length === 0 ? (
         <EmptyState
           icon={Building2}

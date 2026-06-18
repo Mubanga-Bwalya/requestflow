@@ -85,7 +85,6 @@ export function useLoginPage(options: Options = {}) {
     try {
       const session = await login(email.trim(), password);
       actions.setSession(session);
-      router.push("/dashboard");
     } catch (e) {
       setError(e instanceof LoginError ? e.message : loginErrorFallback);
     } finally {

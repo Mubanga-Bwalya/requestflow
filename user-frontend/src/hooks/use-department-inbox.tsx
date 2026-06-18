@@ -12,7 +12,7 @@ import {
   subscribeAppRefresh,
   type AppRefreshScope,
 } from "@/lib/app-refresh";
-import { invalidateApiCache } from "@/lib/query-cache";
+import { invalidateApiCache, peekApiCache, cacheScopeUserId } from "@/lib/query-cache";
 import { type ListTabBucket } from "@/lib/request-status-groups";
 import type { RequestItem } from "@/types/request";
 
@@ -23,18 +23,27 @@ type InboxOptions = {
   enabled?: boolean;
 };
 
+function inboxCacheKey(dept: string, page: number, tab: ListTabBucket, debouncedQ: string) {
+  const q = debouncedQ.trim();
+  return `requests:dept:${cacheScopeUserId()}:${dept}:${page}:${LIST_PAGE_SIZE}:${tab}:${q}`;
+}
+
 export function useDepartmentInbox(
   dept: string | null | undefined,
   options: InboxOptions = {},
 ) {
   const enabled = options.enabled !== false;
-  const [result, setResult] = useState(EMPTY);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<ListTabBucket>("ALL");
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q.trim(), 300);
+
+  const cacheKey = dept ? inboxCacheKey(dept, page, tab, debouncedQ) : "";
+  const cached = enabled && dept ? peekApiCache<typeof EMPTY>(cacheKey) : undefined;
+
+  const [result, setResult] = useState(cached ?? EMPTY);
+  const [loading, setLoading] = useState(Boolean(enabled && dept && !cached));
+  const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!enabled || !dept) {
@@ -42,7 +51,7 @@ export function useDepartmentInbox(
       setLoading(false);
       return;
     }
-    invalidateApiCache(`requests:dept:${dept}:`);
+    invalidateApiCache(`requests:dept:${cacheScopeUserId()}:${dept}:`);
     setLoading(true);
     setError(null);
     try {
@@ -74,8 +83,15 @@ export function useDepartmentInbox(
       return;
     }
 
-    invalidateApiCache(`requests:dept:${dept}:`);
-    setLoading(true);
+    const key = inboxCacheKey(dept, page, tab, debouncedQ);
+    const hit = peekApiCache<typeof EMPTY>(key);
+    if (hit) {
+      setResult(hit);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     setError(null);
     let cancelled = false;
 
@@ -89,7 +105,7 @@ export function useDepartmentInbox(
         if (!cancelled) setResult(data);
       })
       .catch((e) => {
-        if (!cancelled) {
+        if (!cancelled && !hit) {
           setResult(EMPTY);
           setError(apiErrorMessage(e, "Could not load the department inbox. Please try again."));
         }
@@ -112,19 +128,7 @@ export function useDepartmentInbox(
       }
     };
 
-    const unsub = subscribeAppRefresh(onRefresh);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void reload();
-    };
-
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
-
-    return () => {
-      unsub();
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
-    };
+    return subscribeAppRefresh(onRefresh);
   }, [enabled, dept, reload]);
 
   const tableRows: DataTableRow[] = useMemo(

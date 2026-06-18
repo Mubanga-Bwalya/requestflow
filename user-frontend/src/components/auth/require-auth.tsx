@@ -16,9 +16,13 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     }
   }, [state.authReady, state.auth.isLoggedIn, router]);
 
-  if (!state.authReady || !state.auth.isLoggedIn) {
+  if (state.auth.isLoggedIn) {
+    return <>{children}</>;
+  }
+
+  if (!state.authReady) {
     return <LoadingScreen />;
   }
 
-  return <>{children}</>;
+  return <LoadingScreen />;
 }

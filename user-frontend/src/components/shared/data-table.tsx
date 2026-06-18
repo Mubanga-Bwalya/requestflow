@@ -18,7 +18,7 @@ export function DataTable({
   return (
     <>
       <DataTableMobileList columns={columns} rows={rows} />
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <Table>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>

@@ -19,7 +19,14 @@
     "test:e2e": "npm run test:e2e --workspace=backend",
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
-    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f"
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "prisma:validate": "npm run prisma:validate --workspace=backend",
+    "audit:deployment-smoke": "node scripts/deployment-smoke-audit.mjs",
+    "audit:regression": "node scripts/final-regression-audit.mjs",
+    "audit:workflow-proof": "node scripts/final-workflow-proof.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
   },
   "engines": {
     "node": ">=20.11.0",

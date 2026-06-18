@@ -45,6 +45,14 @@ function sessionToAuth(session: AppSession): AuthState {
 }
 
 function buildInitialState(): State {
+  const stored = typeof window !== "undefined" ? loadSession() : null;
+  if (stored) {
+    return {
+      auth: sessionToAuth(stored),
+      authReady: true,
+      accessibility: { largeText: false, highContrast: false, reduceMotion: false },
+    };
+  }
   return {
     auth: { isLoggedIn: false },
     authReady: false,
@@ -93,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function bootstrap() {
       const stored = loadSession();
       if (stored) {
-        dispatch({ type: "SET_SESSION", payload: stored });
         try {
           const refreshed = await fetchCurrentUser();
           if (!cancelled && refreshed) {
@@ -102,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           if (!cancelled) dispatch({ type: "LOGOUT" });
         }
+        return;
       }
       if (!cancelled) dispatch({ type: "AUTH_READY" });
     }

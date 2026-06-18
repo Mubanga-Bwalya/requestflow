@@ -109,7 +109,7 @@ export function CreateRequestClient({ presetDepartment }: { presetDepartment: De
                     Back
                   </Button>
                 )}
-                <Button className="w-full sm:w-auto" onClick={wizard.next} disabled={nextDisabled} loading={wizard.submitting}>
+                <Button className="w-full sm:w-auto" onClick={wizard.next} disabled={nextDisabled} loading={wizard.submitting} data-rf-testid="submit-request">
                   {nextLabel}
                 </Button>
               </div>

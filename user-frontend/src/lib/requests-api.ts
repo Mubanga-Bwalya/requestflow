@@ -3,7 +3,7 @@ import { emitAppRefresh } from "@/lib/app-refresh";
 import { type PaginatedResponse } from "@/lib/pagination";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { invalidateNotificationCaches } from "@/lib/notifications-api";
-import { cachedApi, invalidateApiCache } from "@/lib/query-cache";
+import { cacheScopeUserId, cachedApi, invalidateApiCache } from "@/lib/query-cache";
 import type { ListTabBucket } from "@/lib/request-status-groups";
 import type { Priority, RequestItem, RequestStatus } from "@/types/request";
 
@@ -74,15 +74,42 @@ function listQueryParams(params?: {
   };
 }
 
+function myRequestsCacheKey(params?: {
+  page?: number;
+  limit?: number;
+  tab?: ListTabBucket;
+  q?: string;
+}) {
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? LIST_PAGE_SIZE;
+  const tab = params?.tab ?? "ALL";
+  const q = params?.q?.trim() ?? "";
+  return `requests:mine:${cacheScopeUserId()}:${page}:${limit}:${tab}:${q}`;
+}
+
+function deptRequestsCacheKey(
+  targetDepartmentName: string,
+  params?: { page?: number; limit?: number; tab?: ListTabBucket; q?: string },
+) {
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? LIST_PAGE_SIZE;
+  const tab = params?.tab ?? "ALL";
+  const q = params?.q?.trim() ?? "";
+  return `requests:dept:${cacheScopeUserId()}:${targetDepartmentName}:${page}:${limit}:${tab}:${q}`;
+}
+
 export async function fetchMyRequests(
   params?: { page?: number; limit?: number; tab?: ListTabBucket; q?: string },
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<RequestItem>> {
-  const { data } = await api.get<PaginatedResponse<RequestItem>>("/requests", {
-    params: listQueryParams(params),
-    signal,
+  const key = myRequestsCacheKey(params);
+  return cachedApi(key, async () => {
+    const { data } = await api.get<PaginatedResponse<RequestItem>>("/requests", {
+      params: listQueryParams(params),
+      signal,
+    });
+    return data;
   });
-  return data;
 }
 
 export async function fetchDepartmentRequests(
@@ -90,11 +117,14 @@ export async function fetchDepartmentRequests(
   params?: { page?: number; limit?: number; tab?: ListTabBucket; q?: string },
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<RequestItem>> {
-  const { data } = await api.get<PaginatedResponse<RequestItem>>("/requests", {
-    params: { targetDepartmentName, ...listQueryParams(params) },
-    signal,
+  const key = deptRequestsCacheKey(targetDepartmentName, params);
+  return cachedApi(key, async () => {
+    const { data } = await api.get<PaginatedResponse<RequestItem>>("/requests", {
+      params: { targetDepartmentName, ...listQueryParams(params) },
+      signal,
+    });
+    return data;
   });
-  return data;
 }
 
 function invalidateRequestCaches() {

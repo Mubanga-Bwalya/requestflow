@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { List } from "lucide-react";
 import { ApiErrorBanner } from "@/components/shared/api-error-banner";
-import { LoadingScreen } from "@/components/shared/loading-screen";
+import { DataListSkeleton, ListCountSkeleton } from "@/components/shared/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
@@ -22,7 +22,7 @@ import { LIST_TAB_LABELS, type ListTabBucket } from "@/lib/request-status-groups
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
+    <Suspense fallback={<DataListSkeleton rowCount={4} columnCount={8} />}>
       <RequestsPageContent />
     </Suspense>
   );
@@ -108,8 +108,8 @@ function RequestsPageContent() {
           <CardContent className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-zamtel-muted">
               <p>
-                {loading ? (
-                  "Loading…"
+                {loading && !rows.length ? (
+                  <ListCountSkeleton />
                 ) : (
                   <>
                     Showing <span className="font-semibold text-brand-dark">{showingCount}</span> request(s)
@@ -123,7 +123,9 @@ function RequestsPageContent() {
               ) : null}
             </div>
 
-            {!loading && !error && rows.length ? (
+            {loading && !rows.length ? (
+              <DataListSkeleton rowCount={5} columnCount={8} />
+            ) : !error && rows.length ? (
               <>
                 <DataTable
                   columns={[

@@ -46,7 +46,7 @@ export function DataTableMobileList({ columns, rows }: { columns: DataTableColum
   const actionKey = columns.find((c) => c.key === "__view" || c.key === "__actions")?.key;
 
   return (
-    <ul className="space-y-3 md:hidden" aria-label="List">
+    <ul className="space-y-3 lg:hidden" aria-label="List">
       {rows.map((row, i) => (
         <li
           key={i}

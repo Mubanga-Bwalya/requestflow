@@ -19,7 +19,10 @@ export function RequireAdminAuth({ children }: { children: ReactNode }) {
     }
   }, [state.authReady, state.auth.isLoggedIn, router]);
 
-  if (!state.authReady || !state.auth.isLoggedIn) {
+  if (!state.auth.isLoggedIn) {
+    if (!state.authReady) {
+      return <LoadingScreen />;
+    }
     return <LoadingScreen />;
   }
 

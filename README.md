@@ -2,7 +2,9 @@
 
 Internal request and progress-tracking system for Zamtel departments. Employees submit structured requests to other departments; managers review, assign work, and track milestones; requesters approve completed work.
 
-**Documentation:** [`docs/`](docs/) — architecture, API, security, setup, deployment, testing, and workflows.
+**For supervisors and management:** start with **[`docs/SUPERVISOR_README.md`](docs/SUPERVISOR_README.md)**.
+
+**Technical documentation:** [`docs/`](docs/) — setup, architecture, API, security, deployment, and testing.
 
 ---
 
@@ -47,11 +49,12 @@ Internal request and progress-tracking system for Zamtel departments. Employees 
 ```txt
 .
 ├── backend/              # NestJS API, Prisma schema, SQL migrations, tests
-├── user-frontend/      # Employee & manager portal
-├── admin-frontend/     # Configuration & reporting portal
-├── docker/             # docker-compose.yml (Postgres + Redis)
-├── docs/               # Enterprise documentation (start here)
-├── package.json        # Workspace scripts (optional convenience)
+├── user-frontend/        # Employee & manager portal
+├── admin-frontend/       # Configuration & reporting portal
+├── docker/               # docker-compose.yml (Postgres + Redis, dev reference)
+├── docs/                 # Documentation (start with SUPERVISOR_README.md)
+├── scripts/              # Deployment smoke and regression audit scripts
+├── package.json          # Workspace scripts
 └── README.md
 ```
 
@@ -61,7 +64,7 @@ Internal request and progress-tracking system for Zamtel departments. Employees 
 
 - Node.js **20.11+** (see `.nvmrc`)
 - npm 10+
-- Docker Desktop (recommended for Postgres and Redis)
+- Docker Desktop (recommended for local Postgres and Redis)
 
 ---
 
@@ -103,6 +106,10 @@ Copy `user-frontend/.env.example` → `.env.local` and `admin-frontend/.env.exam
 | `npm run test:e2e` | Backend e2e tests |
 | `npm run lint` | Lint all workspaces |
 | `npm run typecheck` | Typecheck all workspaces |
+| `npm run prisma:validate` | Validate Prisma schema |
+| `npm run audit:deployment-smoke` | Playwright post-deploy smoke (prod-mode services) |
+| `npm run audit:regression` | Full Playwright regression audit |
+| `npm run audit:workflow-proof` | Workflow proof audit |
 
 Backend-only: `npm run db:seed`, `npm run hash-passwords` — see [`docs/DATABASE.md`](docs/DATABASE.md).
 
@@ -110,20 +117,36 @@ Backend-only: `npm run db:seed`, `npm run hash-passwords` — see [`docs/DATABAS
 
 ## Documentation index
 
+### For supervisors and management
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/SUPERVISOR_README.md`](docs/SUPERVISOR_README.md) | **Start here** — what RequestFlow is, why it matters, workflow, readiness |
+| [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) | Readiness scores, limitations, verification steps |
+| [`docs/INTEGRATION_READINESS.md`](docs/INTEGRATION_READINESS.md) | How RequestFlow connects to internal Zamtel systems |
+
+### For IT and operators
+
 | Document | Purpose |
 |----------|---------|
 | [`docs/SETUP.md`](docs/SETUP.md) | Local development setup and troubleshooting |
+| [`docs/LOCAL_SERVER_DEPLOYMENT.md`](docs/LOCAL_SERVER_DEPLOYMENT.md) | On-prem server deploy (PM2, Nginx, systemd) |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Environment variables, build commands, rollout plan |
+| [`docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) | Pre/post deploy sign-off checklist |
+| [`docs/BACKUP_AND_RECOVERY.md`](docs/BACKUP_AND_RECOVERY.md) | PostgreSQL backup and restore |
+
+### For developers and architects
+
+| Document | Purpose |
+|----------|---------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design and code map |
 | [`docs/API.md`](docs/API.md) | REST API reference |
-| [`docs/DATABASE.md`](docs/DATABASE.md) | Schema, SQL files, seeds, migrations |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | Schema, SQL migrations, seeds |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Auth, authorization, known gaps |
 | [`docs/USER_ROLES_AND_PERMISSIONS.md`](docs/USER_ROLES_AND_PERMISSIONS.md) | Who can do what |
 | [`docs/REQUEST_WORKFLOW.md`](docs/REQUEST_WORKFLOW.md) | Request and assignment lifecycle |
 | [`docs/TESTING.md`](docs/TESTING.md) | Automated and manual tests |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Production deployment plan |
-| [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) | Demo vs pilot readiness scores and limitations |
-| [`docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md`](docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md) | Pre/post deploy checklist |
-| [`docs/CODE_ORGANIZATION.md`](docs/CODE_ORGANIZATION.md) | Where rules live; module layout |
+| [`docs/CODE_ORGANIZATION.md`](docs/CODE_ORGANIZATION.md) | Module layout and where rules live |
 | [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) | Code quality rules |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
 

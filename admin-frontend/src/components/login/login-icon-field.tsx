@@ -70,7 +70,7 @@ export function LoginIconField({
         {showPasswordToggle ? (
           <button
             type="button"
-            className="rf-clickable-icon absolute right-3 top-1/2 -translate-y-1/2 rounded-control p-1.5 text-zamtel-muted hover:text-brand-dark"
+            className="rf-clickable-icon absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-control text-zamtel-muted hover:text-brand-dark"
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Hide password" : "Show password"}
           >

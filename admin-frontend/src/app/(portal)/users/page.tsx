@@ -1,5 +1,6 @@
 "use client";
 
+import { DataListSkeleton } from "@/components/shared/skeleton";
 import { UsersFormDialog } from "@/components/admin-users/users-form-dialog";
 import { DataTable, type DataTableRow } from "@/components/shared/data-table";
 import { PaginationBar } from "@/components/shared/pagination-bar";
@@ -48,8 +49,8 @@ export default function Page() {
         </Select>
       </div>
 
-      {u.loading ? (
-        <p className="text-sm text-muted">Loading users…</p>
+      {u.loading && !u.filtered.length ? (
+        <DataListSkeleton rowCount={6} columnCount={6} />
       ) : (
         <>
           <DataTable

@@ -12,12 +12,12 @@ function AdminShellInner({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-surface-subtle">
+    <div className="flex min-h-screen min-w-0 overflow-x-hidden bg-surface-subtle" data-rf-shell="admin">
       <AdminSidebar />
       <AdminMobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AdminHeader title={title} onMenuOpen={() => setMobileNavOpen(true)} />
-        <main className="relative z-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className="relative z-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
@@ -39,12 +39,12 @@ export function AdminShell({ children, title }: { children: ReactNode; title: st
 
   return (
     <RequireAdminAuth>
-      <div className="flex min-h-screen bg-surface-subtle">
+      <div className="flex min-h-screen min-w-0 overflow-x-hidden bg-surface-subtle" data-rf-shell="admin">
         <AdminSidebar />
         <AdminMobileNavDrawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminHeader title={title} onMenuOpen={() => setMobileNavOpen(true)} />
-          <main className="relative z-0 flex-1 p-4 sm:p-6">{children}</main>
+          <main className="relative z-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </RequireAdminAuth>

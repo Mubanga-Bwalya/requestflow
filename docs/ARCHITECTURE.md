@@ -1,8 +1,24 @@
 # Architecture
 
-> **Last updated:** 2026-06-11
+> **Last updated:** 2026-06-18
 
-Related: [`API.md`](API.md) · [`SECURITY.md`](SECURITY.md) · [`REQUEST_WORKFLOW.md`](REQUEST_WORKFLOW.md) · [`DATABASE.md`](DATABASE.md) · [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md)
+Related: [`API.md`](API.md) · [`SECURITY.md`](SECURITY.md) · [`REQUEST_WORKFLOW.md`](REQUEST_WORKFLOW.md) · [`DATABASE.md`](DATABASE.md) · [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
+
+---
+
+## Plain-language overview
+
+RequestFlow has three main parts that work together:
+
+1. **User portal** — where employees and department managers work (create requests, inbox, tasks).
+2. **Admin portal** — where administrators configure the system (users, departments, templates, reports).
+3. **API server** — the brain of the system. All business rules, security checks, and data changes happen here.
+
+Both portals talk to the API over HTTPS. The API stores data in **PostgreSQL**. **Redis** is optional and speeds up repeated reads; if Redis is unavailable, the system continues using PostgreSQL only.
+
+**Important:** The portals are thin clients. Hiding a button in the UI does not remove access — the API enforces who can do what.
+
+For supervisors: [`SUPERVISOR_README.md`](SUPERVISOR_README.md).
 
 ---
 

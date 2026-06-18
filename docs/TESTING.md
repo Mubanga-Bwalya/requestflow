@@ -1,8 +1,8 @@
 # Testing
 
-> **Last updated:** 2026-06-11
+> **Last updated:** 2026-06-18
 
-Related: [`SECURITY.md`](SECURITY.md) · [`SETUP.md`](SETUP.md)
+Related: [`SECURITY.md`](SECURITY.md) · [`SETUP.md`](SETUP.md) · [`LOCAL_SERVER_DEPLOYMENT.md`](LOCAL_SERVER_DEPLOYMENT.md)
 
 ---
 
@@ -17,8 +17,13 @@ Related: [`SECURITY.md`](SECURITY.md) · [`SETUP.md`](SETUP.md)
 | `npm run lint` | All workspaces |
 | `npm run typecheck` | All workspaces |
 | `npm run build` | All workspaces |
+| `npm run audit:deployment-smoke` | Playwright post-deploy smoke (`scripts/deployment-smoke-audit.mjs`) |
+| `npm run audit:regression` | Full Playwright regression (`scripts/final-regression-audit.mjs`) |
+| `npm run audit:workflow-proof` | Workflow proof audit (`scripts/final-workflow-proof.mjs`) |
 
-**Frontends:** no automated tests currently (0 test files).
+**Playwright:** Declared as a root workspace `devDependency` (`package.json`). Install browsers once: `npx playwright install chromium`.
+
+**Frontends:** no unit test files; Playwright audits cover production-mode UI smoke/regression.
 
 CI (`.github/workflows/ci.yml`): backend unit + e2e, all three apps lint/typecheck/build.
 
@@ -73,7 +78,28 @@ Requires PostgreSQL with seed data. `E2E_DISABLE_THROTTLE=true` in test env.
 
 ---
 
-## Manual test cases
+## Manual verification checklist
+
+Use this after deployment or before a supervisor demo:
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | User portal login | Dashboard loads |
+| 2 | Admin portal login | Dashboard loads |
+| 3 | Create request (employee) | Request appears in My Requests |
+| 4 | Manager inbox | Request visible to appointed manager only |
+| 5 | Manager accepts and assigns | Assignment created; assignee notified |
+| 6 | Assignee updates milestone | Progress updates visible |
+| 7 | Manager marks ready for review | Status changes correctly |
+| 8 | Requester approves | Request completes |
+| 9 | Admin user management | Add/edit user works |
+| 10 | Admin reports | Data loads without errors |
+| 11 | Health check | `GET /health` returns OK |
+| 12 | Cross-user access | Employee cannot view another user’s request (404) |
+
+Full manual test cases and demo accounts below.
+
+---
 
 ### Critical permission tests
 

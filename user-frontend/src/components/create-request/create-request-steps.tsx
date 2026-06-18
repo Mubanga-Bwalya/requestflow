@@ -93,6 +93,7 @@ export function CreateRequestSteps(props: Props) {
                   title={d.name}
                   description={departmentDescription(d.name, d.description)}
                   variant={department === d.name ? "primary" : "default"}
+                  dataTestId={`department-card-${d.name.toLowerCase().replace(/\s+/g, "-")}`}
                   onClick={() => onDepartmentChange(d.name)}
                 />
               ))}
@@ -108,7 +109,7 @@ export function CreateRequestSteps(props: Props) {
             <p className="mt-1 text-sm text-zamtel-muted">
               {loadingTemplates ? "Loading types from database…" : `${templates.length} type(s) available for ${department}.`}
             </p>
-            <div className="mt-3">
+            <div className="mt-3" data-rf-testid="request-type-select">
               <Select
                 className="mt-0"
                 value={requestTypeId}

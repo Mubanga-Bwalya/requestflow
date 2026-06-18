@@ -16,6 +16,7 @@ import {
   type SystemEventItem,
 } from "@/lib/admin-api";
 import { ApiErrorBanner } from "@/components/shared/api-error-banner";
+import { AdminDashboardStatSkeletons, TimelineListSkeleton } from "@/components/shared/skeleton";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatRelativeTime } from "@/lib/utils";
 
@@ -74,28 +75,22 @@ export function AdminDashboardClient() {
           </div>
         }
       />
-      <div className="space-y-6">
+      <div className="min-w-0 max-w-full space-y-6" data-rf-page="admin-dashboard">
         <ApiErrorBanner message={error} />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {loading
-            ? Array.from({ length: 6 }, (_, i) => (
-                <Card key={`dashboard-skeleton-${i}`} className="relative overflow-hidden">
-                  <div className="absolute left-0 top-0 h-1 w-full bg-brand-primary" aria-hidden />
-                  <CardContent>
-                    <p className="text-sm text-muted">…</p>
-                    <p className="mt-2 text-2xl font-semibold text-brand-dark">…</p>
-                  </CardContent>
-                </Card>
-              ))
-            : summary.map((item) => (
-                <Card key={item.label} className="relative overflow-hidden">
-                  <div className="absolute left-0 top-0 h-1 w-full bg-brand-primary" aria-hidden />
-                  <CardContent>
-                    <p className="text-sm text-muted">{item.label}</p>
-                    <p className="mt-2 text-2xl font-semibold text-brand-dark">{item.value}</p>
-                  </CardContent>
-                </Card>
-              ))}
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {loading && !summary.length ? (
+            <AdminDashboardStatSkeletons count={6} />
+          ) : (
+            summary.map((item) => (
+              <Card key={item.label} className="relative min-w-0 overflow-hidden">
+                <div className="absolute left-0 top-0 h-1 w-full bg-brand-primary" aria-hidden />
+                <CardContent className="min-w-0">
+                  <p className="truncate text-sm text-muted">{item.label}</p>
+                  <p className="mt-2 truncate text-2xl font-semibold text-brand-dark">{item.value}</p>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
 
         <Card className="hidden md:block">
@@ -124,8 +119,8 @@ export function AdminDashboardClient() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="py-4">
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="min-w-0 py-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-bold text-brand-dark">System health (errors)</p>
               <Link href="/logs" className="rf-text-link inline-flex items-center gap-1 text-xs">
@@ -134,16 +129,16 @@ export function AdminDashboardClient() {
               </Link>
             </div>
             <p className="mt-1 text-xs text-muted">Recent server failures and warnings from RequestFlow.</p>
-            {loading ? (
-              <p className="mt-3 text-sm text-muted">Loading…</p>
+            {loading && !systemEvents.length ? (
+              <TimelineListSkeleton rows={3} />
             ) : error ? (
               <p className="mt-3 text-sm text-muted">Dashboard data could not be loaded.</p>
             ) : systemEvents.length ? (
-              <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+              <ul className="mt-3 max-h-64 min-w-0 space-y-2 overflow-y-auto overflow-x-hidden">
                 {systemEvents.map((ev) => (
                   <li
                     key={ev.id}
-                    className={`rounded-md border px-3 py-2 text-sm ${
+                    className={`min-w-0 rounded-md border px-3 py-2 text-sm ${
                       ev.level === "ERROR"
                         ? "border-red-200 bg-red-50 text-red-900"
                         : "border-amber-200 bg-amber-50 text-amber-900"
@@ -167,26 +162,28 @@ export function AdminDashboardClient() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="py-4">
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="min-w-0 py-4">
             <p className="text-sm font-bold text-brand-dark">Recent Activity</p>
-            {loading ? (
-              <p className="mt-3 text-sm text-muted">Loading…</p>
+            {loading && !activity.length ? (
+              <TimelineListSkeleton rows={5} />
             ) : error ? (
               <p className="mt-3 text-sm text-muted">Activity could not be loaded.</p>
             ) : activity.length ? (
-              <ul className="mt-3 space-y-3 border-l-2 border-brand-primary/20 pl-4">
+              <ul className="mt-3 min-w-0 space-y-3">
                 {activity.map((a) => (
-                  <li key={a.id} className="relative">
+                  <li key={a.id} className="flex min-w-0 gap-3">
                     <div
-                      className="absolute -left-[19px] top-1.5 h-2.5 w-2.5 rounded-full bg-brand-primary ring-4 ring-brand-primary/10"
+                      className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-primary ring-4 ring-brand-primary/10"
                       aria-hidden
                     />
-                    <p className="text-sm text-zamtel-text">
-                      {a.description}
-                      {a.requestNumber ? ` (${a.requestNumber})` : ""}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">{formatRelativeTime(a.createdAt)}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm text-zamtel-text">
+                        {a.description}
+                        {a.requestNumber ? ` (${a.requestNumber})` : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted">{formatRelativeTime(a.createdAt)}</p>
+                    </div>
                   </li>
                 ))}
               </ul>

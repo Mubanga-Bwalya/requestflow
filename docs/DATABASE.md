@@ -1,8 +1,27 @@
 # Database
 
-> **Last updated:** 2026-06-11
+> **Last updated:** 2026-06-18
 
-Related: [`SETUP.md`](SETUP.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md)
+Related: [`SETUP.md`](SETUP.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md)
+
+---
+
+## Plain-language overview
+
+RequestFlow stores all organisational and workflow data in **PostgreSQL**. Think of the database as the permanent record for:
+
+| Data | Examples |
+|------|----------|
+| People and access | Users, roles, which department someone belongs to |
+| Organisation | Departments and appointed managers |
+| Request definitions | Templates and form fields |
+| Live work | Requests, assignments, milestones, status history |
+| Accountability | Activity logs, system error logs, notifications |
+| Configuration | System name, upload limits, and settings |
+
+The database schema is applied using numbered SQL files (not Prisma Migrate). Operators run `apply-migrations.sh` in the documented order. A full backup should be taken before any migration on production.
+
+For supervisors: [`SUPERVISOR_README.md`](SUPERVISOR_README.md).
 
 ---
 
@@ -30,7 +49,35 @@ Related: [`SETUP.md`](SETUP.md) · [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 **Limitation:** No migration version table. Operators must apply SQL files in documented order. **Safe next step:** add a `schema_migrations` table + runner script that records applied filenames (lightweight, no Prisma Migrate required).
 
+### Migration tracking (operator checklist)
+
+After each apply on staging/production, record in an operator log:
+
+| Field | Example |
+|-------|---------|
+| Environment | `pilot` |
+| Date/time (UTC) | `2026-06-18T14:30:00Z` |
+| SQL files applied | `001 … 015, 002` |
+| Operator | name |
+| Pre-migration backup file | `requestflow_pilot_20260618_143000.dump` |
+| Notes | first deploy / upgrade from X |
+
+See [`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md) — **backup before every migration**.
+
 ---
+
+## Backup and recovery
+
+Production backups use `pg_dump`. Full procedures, naming, restore, and migration-failure response: **[`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md)**.
+
+Quick reference:
+
+```bash
+pg_dump -h localhost -U requestflow -d requestflow -Fc \
+  -f "/var/backups/requestflow/requestflow_prod_$(date +%Y%m%d_%H%M%S).dump"
+```
+
+Never run `prisma migrate reset` on production.
 
 ## Connection (local Docker)
 

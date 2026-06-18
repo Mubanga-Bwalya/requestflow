@@ -65,7 +65,19 @@ export function DashboardStatSkeletons({ count }: { count: number }) {
   return (
     <>
       {Array.from({ length: count }, (_, i) => (
-        <div key={`sk-${i}`} className="h-[88px] animate-pulse rounded-card border border-zamtel-border bg-white/80" />
+        <div
+          key={`sk-${i}`}
+          className="flex min-h-[88px] flex-col justify-between rounded-card border border-zamtel-border bg-white/80 p-4 shadow-card"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="h-9 w-9 animate-pulse rounded-full bg-brand-primary/10" />
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-7 w-12 animate-pulse rounded bg-brand-primary/10" />
+            <div className="h-4 w-28 animate-pulse rounded bg-brand-primary/10" />
+            <div className="h-3 w-36 animate-pulse rounded bg-brand-primary/5" />
+          </div>
+        </div>
       ))}
     </>
   );

@@ -48,7 +48,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 
 const sizeClasses: Record<ButtonSize, string> = {
   default: "min-h-11 px-6 text-sm",
-  compact: "min-h-9 px-4 text-xs",
+  compact: "min-h-11 px-4 text-xs sm:min-h-9",
 };
 
 export function buttonClassName(options?: {

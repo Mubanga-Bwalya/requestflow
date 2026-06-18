@@ -8,8 +8,10 @@ import {
 } from "@/lib/app-refresh";
 import { apiErrorMessage } from "@/lib/api-error";
 import { fetchUserWorkspace } from "@/lib/workspace-api";
+import { peekApiCache, cacheScopeUserId } from "@/lib/query-cache";
 import type { Assignment } from "@/types/task";
 import type { RequestItem } from "@/types/request";
+import type { UserWorkspace } from "@/lib/workspace-api";
 
 const EMPTY_STATS = {
   myRequestsTotal: 0,
@@ -18,19 +20,34 @@ const EMPTY_STATS = {
   inboxActions: 0,
 };
 
+function workspaceCacheKey(includeInbox: boolean) {
+  return `workspace:${cacheScopeUserId()}:${includeInbox ? "inbox" : "base"}`;
+}
+
+function applyWorkspace(ws: UserWorkspace) {
+  return {
+    requests: ws.requests,
+    assignments: ws.assignments,
+    inbox: ws.inbox,
+    stats: ws.stats,
+  };
+}
+
 export function useUserWorkspace(
   userId: string | undefined,
   departmentName: string | null | undefined,
   isManager: boolean,
 ) {
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [inbox, setInbox] = useState<RequestItem[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [stats, setStats] = useState(EMPTY_STATS);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const includeInbox = isManager && Boolean(departmentName);
+  const cacheKey = workspaceCacheKey(includeInbox);
+  const cached = peekApiCache<UserWorkspace>(cacheKey);
+
+  const [requests, setRequests] = useState<RequestItem[]>(cached?.requests ?? []);
+  const [inbox, setInbox] = useState<RequestItem[]>(cached?.inbox ?? []);
+  const [assignments, setAssignments] = useState<Assignment[]>(cached?.assignments ?? []);
+  const [stats, setStats] = useState(cached?.stats ?? EMPTY_STATS);
+  const [loading, setLoading] = useState(!cached && Boolean(userId));
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -41,27 +58,42 @@ export function useUserWorkspace(
         setLoading(false);
         return;
       }
-      setLoading(true);
+
+      const hit = peekApiCache<UserWorkspace>(cacheKey);
+      if (hit) {
+        const next = applyWorkspace(hit);
+        setRequests(next.requests);
+        setAssignments(next.assignments);
+        setInbox(next.inbox);
+        setStats(next.stats);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       setError(null);
       try {
         const ws = await fetchUserWorkspace({ includeInbox });
         if (signal?.aborted) return;
-        setRequests(ws.requests);
-        setAssignments(ws.assignments);
-        setInbox(ws.inbox);
-        setStats(ws.stats);
+        const next = applyWorkspace(ws);
+        setRequests(next.requests);
+        setAssignments(next.assignments);
+        setInbox(next.inbox);
+        setStats(next.stats);
       } catch (e) {
         if (signal?.aborted) return;
-        setRequests([]);
-        setAssignments([]);
-        setInbox([]);
-        setStats(EMPTY_STATS);
-        setError(apiErrorMessage(e, "Could not load your dashboard. Check your connection and try again."));
+        if (!hit) {
+          setRequests([]);
+          setAssignments([]);
+          setInbox([]);
+          setStats(EMPTY_STATS);
+          setError(apiErrorMessage(e, "Could not load your dashboard. Check your connection and try again."));
+        }
       } finally {
         if (!signal?.aborted) setLoading(false);
       }
     },
-    [userId, includeInbox],
+    [userId, includeInbox, cacheKey],
   );
 
   useEffect(() => {

@@ -325,8 +325,7 @@ All routes: **`AdminRoleGuard`** + elevated read throttle.
 
 ---
 
-## TODO: undocumented details
+## Further reference
 
-- Full JSON shapes for each DTO (see `backend/src/modules/*/dto/`)
-- Email webhook endpoints (none)
-- File upload pipeline (filename-only MVP)
+- Full JSON shapes for each DTO: `backend/src/modules/*/dto/`
+- OpenAPI/Swagger: not implemented; this document is authoritative

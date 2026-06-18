@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { DashboardNextStepsSkeleton } from "@/components/shared/skeleton";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -12,7 +13,7 @@ export function DashboardNextStepsPanel({ loading, steps }: Props) {
       <CardContent className="flex min-h-[280px] flex-col py-5">
         <p className="text-sm font-bold text-brand-dark">Do next</p>
         {loading ? (
-          <p className="mt-4 text-sm text-zamtel-muted">Loading…</p>
+          <DashboardNextStepsSkeleton />
         ) : steps.length === 0 ? (
           <div className="mt-4 flex flex-1 items-center">
             <EmptyState

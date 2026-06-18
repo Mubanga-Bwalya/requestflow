@@ -5,6 +5,7 @@ import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { DataTable } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Inbox } from "lucide-react";
+import { DataListSkeleton, ListCountSkeleton } from "@/components/shared/skeleton";
 import { TableOpenLink } from "@/components/shared/table-open-link";
 import { PaginationBar } from "@/components/shared/pagination-bar";
 import { PageHeader } from "@/components/shared/page-header";
@@ -85,8 +86,8 @@ export default function Page() {
             />
           </div>
           <div className="text-sm text-slate-600">
-            {loading ? (
-              "Loading…"
+            {loading && !tableRows.length ? (
+              <ListCountSkeleton />
             ) : (
               <>
                 Showing <span className="font-medium text-brand-dark">{showingCount}</span> item(s)
@@ -107,8 +108,8 @@ export default function Page() {
 
         <Card className="overflow-hidden">
           <CardContent>
-            {loading ? (
-              <p className="py-4 text-sm text-slate-600">Loading inbox…</p>
+            {loading && !tableRows.length ? (
+              <DataListSkeleton rowCount={5} columnCount={10} />
             ) : error ? null : tableRows.length === 0 ? (
               <EmptyState
                 icon={Inbox}

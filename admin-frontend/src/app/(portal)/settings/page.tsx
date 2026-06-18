@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { fieldLabelClassName } from "@/components/ui/field-control";
 import { apiErrorMessage } from "@/lib/api-error";
+import { AdminSettingsSkeleton } from "@/components/shared/skeleton";
 import { peekApiCache } from "@/lib/query-cache";
 import { fetchSettings, updateSettings, type SystemSettings } from "@/lib/settings-api";
 import { useAuth } from "@/lib/auth-context";
@@ -95,11 +96,11 @@ export default function Page() {
         <div className="mb-4 rounded-md border border-brand-lime/50 bg-brand-lime/30 p-3 text-sm text-brand-dark">Settings saved.</div>
       ) : null}
       {error ? <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
-      <div className="grid gap-6 lg:grid-cols-2">
-      <Card>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+      <Card className="min-w-0 overflow-hidden">
+        <CardContent className="grid min-w-0 gap-4 md:grid-cols-2">
           {loading ? (
-            <p className="text-sm text-muted md:col-span-2">Loading settings…</p>
+            <AdminSettingsSkeleton />
           ) : (
             <>
               <div>

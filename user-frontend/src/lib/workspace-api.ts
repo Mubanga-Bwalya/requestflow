@@ -1,5 +1,10 @@
 import { api } from "@/lib/api";
-import { invalidateApiCache } from "@/lib/query-cache";
+import {
+  WORKSPACE_CACHE_TTL_MS,
+  cacheScopeUserId,
+  cachedApi,
+  invalidateApiCache,
+} from "@/lib/query-cache";
 import type { Assignment } from "@/types/task";
 import type { RequestItem } from "@/types/request";
 
@@ -19,10 +24,17 @@ export type UserWorkspace = {
 export async function fetchUserWorkspace(params: {
   includeInbox: boolean;
 }): Promise<UserWorkspace> {
-  const { data } = await api.get<UserWorkspace>("/workspace", {
-    params: { includeInbox: params.includeInbox ? "true" : "false" },
-  });
-  return data;
+  const key = `workspace:${cacheScopeUserId()}:${params.includeInbox ? "inbox" : "base"}`;
+  return cachedApi(
+    key,
+    async () => {
+      const { data } = await api.get<UserWorkspace>("/workspace", {
+        params: { includeInbox: params.includeInbox ? "true" : "false" },
+      });
+      return data;
+    },
+    WORKSPACE_CACHE_TTL_MS,
+  );
 }
 
 export function invalidateUserWorkspace() {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ReportsSkeleton } from "@/components/shared/skeleton";
 import { ReportsView } from "@/components/admin-reports/reports-view";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,6 @@ export default function Page() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    invalidateApiCache("admin:reports:");
     fetchDepartments(true).then(setDepartments).catch(() => setDepartments([]));
   }, []);
 
@@ -104,7 +104,7 @@ export default function Page() {
       ) : null}
 
       {loading && !data ? (
-        <p className="text-sm text-zamtel-muted">Loading reports…</p>
+        <ReportsSkeleton />
       ) : data ? (
         <ReportsView data={data} />
       ) : null}

@@ -30,6 +30,10 @@ export function ShellTitleProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [override, setOverride] = useState<string | null>(null);
 
+  useEffect(() => {
+    setOverride(null);
+  }, [pathname]);
+
   const title = override ?? titleFromPath(pathname);
 
   const value = useMemo(
