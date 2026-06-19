@@ -27,6 +27,13 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
     return fallback;
   }
 
+  if (!err.response) {
+    if (err.code === "ECONNABORTED") {
+      return "The request timed out. Please check that the API is running and try again.";
+    }
+    return "Cannot reach the RequestFlow API. Make sure the backend is running on port 4000.";
+  }
+
   const status = err.response?.status;
   const payload = extractPayload(err);
 

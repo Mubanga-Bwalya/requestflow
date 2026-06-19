@@ -13,7 +13,8 @@ import { invalidateApiCache } from "@/lib/query-cache";
 export function useRequestDetail(requestId: string, userId: string | undefined) {
   const [req, setReq] = useState<RequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [provideOpen, setProvideOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
@@ -40,6 +41,8 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
     invalidateApiCache(`request:${requestId}`);
     const data = await fetchRequestDetail(requestId);
     applyDetail(data);
+    setLoadError(null);
+    setActionError(null);
   }, [requestId, applyDetail]);
 
   useEffect(() => {
@@ -47,14 +50,14 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
 
     async function load() {
       setLoading(true);
-      setError(null);
+      setLoadError(null);
       try {
         const data = await fetchRequestDetail(requestId);
         if (cancelled) return;
         applyDetail(data);
-      } catch {
+      } catch (e) {
         if (cancelled) return;
-        setError("Could not load this request.");
+        setLoadError(apiErrorMessage(e, "Could not load this request."));
         setReq(null);
       } finally {
         if (!cancelled) setLoading(false);
@@ -77,6 +80,7 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
       return;
     }
     setProvideError(null);
+    setActionError(null);
     setProvideSaving(true);
     try {
       const updated = await provideMissingInformation(req.id, answers);
@@ -91,13 +95,14 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
 
   async function approve() {
     if (!userId || !req || approveSaving) return;
+    setActionError(null);
     setApproveSaving(true);
     try {
       const updated = await updateRequestStatus(req.id, "APPROVED", "Requester approved the completion.");
       setReq(updated);
       setApproveOpen(false);
     } catch (e) {
-      setError(apiErrorMessage(e, "Could not approve this request."));
+      setActionError(apiErrorMessage(e, "Could not approve this request."));
     } finally {
       setApproveSaving(false);
     }
@@ -105,13 +110,14 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
 
   async function reopen() {
     if (!userId || !req || reopenSaving) return;
+    setActionError(null);
     setReopenSaving(true);
     try {
       const updated = await updateRequestStatus(req.id, "REOPENED", "Requester sent the request back for more work.");
       setReq(updated);
       setReopenOpen(false);
     } catch (e) {
-      setError(apiErrorMessage(e, "Could not reopen this request."));
+      setActionError(apiErrorMessage(e, "Could not reopen this request."));
     } finally {
       setReopenSaving(false);
     }
@@ -124,7 +130,9 @@ export function useRequestDetail(requestId: string, userId: string | undefined) 
   return {
     req,
     loading,
-    error,
+    loadError,
+    actionError,
+    clearActionError: () => setActionError(null),
     provideOpen,
     setProvideOpen,
     approveOpen,

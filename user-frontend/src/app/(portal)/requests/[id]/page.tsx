@@ -6,6 +6,7 @@ import { MilestoneDialogs } from "@/components/task-detail/milestone-dialogs";
 import { RequestDetailBody } from "@/components/request-detail/request-detail-body";
 import { RequestDetailDialogs } from "@/components/request-detail/request-detail-dialogs";
 import { RequestDetailSkeleton } from "@/components/request-detail/request-detail-skeleton";
+import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { PageHeader } from "@/components/shared/page-header";
 import { BackButtonLink } from "@/components/ui/back-button-link";
 import { useAssignmentDetail } from "@/hooks/use-assignment-detail";
@@ -65,15 +66,32 @@ function RequestDetailPageContent() {
     );
   }
 
-  if (!d.req || d.error) {
+  if (!d.req || d.loadError) {
     return (
-      <PageHeader title="Request not found" description={d.error ?? ""} actions={backAction} />
+      <>
+        <PageHeader
+          title="Request not found"
+          description={d.loadError ?? "This request could not be loaded."}
+          actions={backAction}
+        />
+        {d.loadError ? (
+          <ApiErrorBanner message={d.loadError} onRetry={() => void d.reload()} className="mt-4" />
+        ) : null}
+      </>
     );
   }
 
   return (
     <>
       <PageHeader title="Request details" description={d.req.requestNumber} actions={backAction} />
+      <ApiErrorBanner
+        message={d.actionError}
+        onRetry={() => {
+          d.clearActionError();
+          void d.reload();
+        }}
+        className="mb-4"
+      />
       <RequestDetailBody
         req={d.req}
         assignment={work.assignment}

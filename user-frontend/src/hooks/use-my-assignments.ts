@@ -10,7 +10,7 @@ import {
 import { apiErrorMessage } from "@/lib/api-error";
 import { fetchMyAssignments } from "@/lib/assignments-api";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
-import { peekApiCache, cacheScopeUserId } from "@/lib/query-cache";
+import { peekApiCache, cacheScopeUserId, setApiCache } from "@/lib/query-cache";
 import { type ListTabBucket } from "@/lib/request-status-groups";
 import type { Assignment } from "@/types/task";
 
@@ -62,13 +62,14 @@ export function useMyAssignments(
           },
           signal,
         );
-        if (!signal?.aborted) setResult(data);
+        if (!signal?.aborted) {
+          setResult(data);
+          setApiCache(key, data);
+        }
       } catch (e) {
         if (!signal?.aborted) {
-          if (!hit) {
-            setResult(EMPTY);
-            setError(apiErrorMessage(e, "Could not load your tasks. Please try again."));
-          }
+          setResult(EMPTY);
+          setError(apiErrorMessage(e, "Could not load your tasks. Please try again."));
         }
       } finally {
         if (!signal?.aborted) setLoading(false);

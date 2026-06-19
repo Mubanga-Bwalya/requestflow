@@ -12,7 +12,7 @@ import {
   subscribeAppRefresh,
   type AppRefreshScope,
 } from "@/lib/app-refresh";
-import { invalidateApiCache, peekApiCache, cacheScopeUserId } from "@/lib/query-cache";
+import { invalidateApiCache, peekApiCache, cacheScopeUserId, setApiCache } from "@/lib/query-cache";
 import { type ListTabBucket } from "@/lib/request-status-groups";
 import type { RequestItem } from "@/types/request";
 
@@ -102,10 +102,13 @@ export function useDepartmentInbox(
       q: debouncedQ || undefined,
     })
       .then((data) => {
-        if (!cancelled) setResult(data);
+        if (!cancelled) {
+          setResult(data);
+          setApiCache(key, data);
+        }
       })
       .catch((e) => {
-        if (!cancelled && !hit) {
+        if (!cancelled) {
           setResult(EMPTY);
           setError(apiErrorMessage(e, "Could not load the department inbox. Please try again."));
         }

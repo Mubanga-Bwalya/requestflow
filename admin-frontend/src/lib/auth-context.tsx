@@ -3,6 +3,7 @@
 /** JWT session + UI preferences; domain data comes from the API. */
 
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import axios from "axios";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { invalidateApiCache } from "@/lib/query-cache";
 import { clearSession, loadSession, saveSession, type AppSession } from "@/lib/session";
@@ -24,14 +25,14 @@ type AuthState = {
 
 type State = {
   auth: AuthState;
-  authReady: boolean;
+  sessionReady: boolean;
   accessibility: AccessibilitySettings;
 };
 
 type Action =
   | { type: "SET_SESSION"; payload: AppSession }
   | { type: "LOGOUT" }
-  | { type: "AUTH_READY" }
+  | { type: "SESSION_READY" }
   | { type: "SET_ACCESSIBILITY"; payload: Partial<AccessibilitySettings> };
 
 function sessionToAuth(session: AppSession): AuthState {
@@ -45,17 +46,9 @@ function sessionToAuth(session: AppSession): AuthState {
 }
 
 function buildInitialState(): State {
-  const stored = typeof window !== "undefined" ? loadSession() : null;
-  if (stored) {
-    return {
-      auth: sessionToAuth(stored),
-      authReady: true,
-      accessibility: { largeText: false, highContrast: false, reduceMotion: false },
-    };
-  }
   return {
     auth: { isLoggedIn: false },
-    authReady: false,
+    sessionReady: false,
     accessibility: { largeText: false, highContrast: false, reduceMotion: false },
   };
 }
@@ -72,8 +65,8 @@ function reducer(state: State, action: Action): State {
       invalidateApiCache();
       return { ...state, auth: { isLoggedIn: false } };
     }
-    case "AUTH_READY":
-      return { ...state, authReady: true };
+    case "SESSION_READY":
+      return { ...state, sessionReady: true };
     case "SET_ACCESSIBILITY":
       return { ...state, accessibility: { ...state.accessibility, ...action.payload } };
     default:
@@ -101,17 +94,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function bootstrap() {
       const stored = loadSession();
       if (stored) {
+        dispatch({ type: "SET_SESSION", payload: stored });
         try {
           const refreshed = await fetchCurrentUser();
           if (!cancelled && refreshed) {
             dispatch({ type: "SET_SESSION", payload: refreshed });
           }
-        } catch {
-          if (!cancelled) dispatch({ type: "LOGOUT" });
+        } catch (e) {
+          if (!cancelled && axios.isAxiosError(e) && e.response?.status === 401) {
+            dispatch({ type: "LOGOUT" });
+          }
         }
-        return;
       }
-      if (!cancelled) dispatch({ type: "AUTH_READY" });
+      if (!cancelled) dispatch({ type: "SESSION_READY" });
     }
 
     void bootstrap();

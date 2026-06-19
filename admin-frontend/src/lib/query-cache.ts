@@ -1,7 +1,6 @@
 type CacheEntry<T> = { data: T; expiresAt: number };
 
 const cache = new Map<string, CacheEntry<unknown>>();
-const inFlight = new Map<string, Promise<unknown>>();
 /** Bumped on invalidation so in-flight fetches cannot repopulate stale data. */
 let cacheEpoch = 0;
 
@@ -21,9 +20,10 @@ export function invalidateApiCache(prefix?: string) {
   for (const key of Array.from(cache.keys())) {
     if (!prefix || key.startsWith(prefix)) cache.delete(key);
   }
-  for (const key of Array.from(inFlight.keys())) {
-    if (!prefix || key.startsWith(prefix)) inFlight.delete(key);
-  }
+}
+
+export function setApiCache<T>(key: string, data: T, ttlMs = DEFAULT_TTL_MS) {
+  cache.set(key, { data, expiresAt: Date.now() + ttlMs });
 }
 
 export async function cachedApi<T>(
@@ -35,23 +35,10 @@ export async function cachedApi<T>(
   const hit = cache.get(key) as CacheEntry<T> | undefined;
   if (hit && hit.expiresAt > now) return hit.data;
 
-  const pending = inFlight.get(key) as Promise<T> | undefined;
-  if (pending) return pending;
-
   const epochAtStart = cacheEpoch;
-  const promise = fetcher()
-    .then((data) => {
-      if (epochAtStart === cacheEpoch) {
-        cache.set(key, { data, expiresAt: now + ttlMs });
-      }
-      inFlight.delete(key);
-      return data;
-    })
-    .catch((err) => {
-      inFlight.delete(key);
-      throw err;
-    });
-
-  inFlight.set(key, promise);
-  return promise;
+  const data = await fetcher();
+  if (epochAtStart === cacheEpoch) {
+    cache.set(key, { data, expiresAt: now + ttlMs });
+  }
+  return data;
 }

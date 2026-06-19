@@ -45,11 +45,11 @@ export function useLoginPage(options: Options = {}) {
   const canSubmit = useMemo(() => email.trim().length > 0 && password.trim().length > 0, [email, password]);
 
   useEffect(() => {
-    if (!state.authReady) return;
+    if (!state.sessionReady) return;
     if (state.auth.isLoggedIn) {
       router.replace("/dashboard");
     }
-  }, [state.authReady, state.auth.isLoggedIn, router]);
+  }, [state.sessionReady, state.auth.isLoggedIn, router]);
 
   function onEmailChange(value: string) {
     setEmail(value);
@@ -86,7 +86,7 @@ export function useLoginPage(options: Options = {}) {
     }
   }
 
-  const showLoading = !state.authReady || state.auth.isLoggedIn;
+  const showLoading = !state.sessionReady || state.auth.isLoggedIn;
 
   return {
     showLoading,

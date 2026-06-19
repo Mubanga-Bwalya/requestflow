@@ -10,19 +10,19 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { state } = useAuth();
 
   useEffect(() => {
-    if (!state.authReady) return;
+    if (!state.sessionReady) return;
     if (!state.auth.isLoggedIn) {
       router.replace("/login");
     }
-  }, [state.authReady, state.auth.isLoggedIn, router]);
+  }, [state.sessionReady, state.auth.isLoggedIn, router]);
 
-  if (state.auth.isLoggedIn) {
-    return <>{children}</>;
-  }
-
-  if (!state.authReady) {
+  if (!state.sessionReady) {
     return <LoadingScreen />;
   }
 
-  return <LoadingScreen />;
+  if (!state.auth.isLoggedIn) {
+    return <LoadingScreen />;
+  }
+
+  return <>{children}</>;
 }
