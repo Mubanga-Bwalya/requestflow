@@ -40,7 +40,7 @@ export function TemplateCreateDialog({
       {error ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
       <div className="grid gap-4">
         <div>
-          <label className={fieldLabelClassName}>Target department *</label>
+          <label className={fieldLabelClassName}>Target department / section *</label>
           <Select
             className="mt-1"
             value={form.departmentId}
@@ -48,11 +48,21 @@ export function TemplateCreateDialog({
           >
             <option value="">Select department…</option>
             {departments.filter((d) => d.isActive).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
+              <optgroup key={d.id} label={d.name}>
+                <option value={d.id}>{d.name} (whole department)</option>
+                {(d.sections ?? [])
+                  .filter((s) => s.isActive)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {d.name} › {s.name}
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </Select>
+          <p className="mt-1 text-xs text-zamtel-muted">
+            Choose a section to make this request type specific to that section.
+          </p>
         </div>
         <div>
           <label className={fieldLabelClassName}>Template name *</label>

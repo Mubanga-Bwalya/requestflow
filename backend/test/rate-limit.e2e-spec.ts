@@ -33,15 +33,15 @@ describe('Login rate limiting (e2e)', () => {
 
     const server = app.getHttpServer();
     // Unique email per run so other e2e suites and prior runs do not consume this IP bucket.
+    // Uses dev-login (email only, throttled identically) so no Zamtel call is made.
     const payload = {
       email: `rate-limit-${Date.now()}@invalid.local`,
-      password: 'wrong-password',
     };
 
     for (let i = 0; i < 5; i++) {
-      await request(server).post('/auth/login').send(payload).expect(401);
+      await request(server).post('/auth/dev-login').send(payload).expect(401);
     }
 
-    await request(server).post('/auth/login').send(payload).expect(429);
+    await request(server).post('/auth/dev-login').send(payload).expect(429);
   });
 });

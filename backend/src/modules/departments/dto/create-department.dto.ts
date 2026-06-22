@@ -30,4 +30,14 @@ export class CreateDepartmentDto {
   @IsOptional()
   @IsUUID()
   cloneTemplatesFromDepartmentId?: string;
+
+  /** When set, creates this as a sub-section under the given top-level department. */
+  @IsOptional()
+  @IsUUID()
+  parentDepartmentId?: string;
+
+  /** Optional manager to assign on creation (typically used for sections). */
+  @IsOptional()
+  @IsUUID()
+  managerUserId?: string;
 }

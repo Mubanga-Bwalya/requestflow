@@ -44,15 +44,14 @@ function sessionToAuth(session: AppSession): AuthState {
   };
 }
 
+/**
+ * Initial state must be identical on the server and the client's first render,
+ * so it must NOT read localStorage here (that runs only on the client and would
+ * cause a hydration mismatch — server renders logged-out, client logged-in).
+ * The stored session is hydrated after mount in AuthProvider's bootstrap effect;
+ * `authReady` gates the UI until then.
+ */
 function buildInitialState(): State {
-  const stored = typeof window !== "undefined" ? loadSession() : null;
-  if (stored) {
-    return {
-      auth: sessionToAuth(stored),
-      authReady: true,
-      accessibility: { largeText: false, highContrast: false, reduceMotion: false },
-    };
-  }
   return {
     auth: { isLoggedIn: false },
     authReady: false,
@@ -100,18 +99,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function bootstrap() {
       const stored = loadSession();
-      if (stored) {
-        try {
-          const refreshed = await fetchCurrentUser();
-          if (!cancelled && refreshed) {
-            dispatch({ type: "SET_SESSION", payload: refreshed });
-          }
-        } catch {
-          if (!cancelled) dispatch({ type: "LOGOUT" });
-        }
+      if (!stored) {
+        if (!cancelled) dispatch({ type: "AUTH_READY" });
         return;
       }
-      if (!cancelled) dispatch({ type: "AUTH_READY" });
+
+      // Hydrate from the stored session immediately (after mount, so server and
+      // client first renders match), then confirm/refresh against the server.
+      if (!cancelled) {
+        dispatch({ type: "SET_SESSION", payload: stored });
+        dispatch({ type: "AUTH_READY" });
+      }
+
+      try {
+        const refreshed = await fetchCurrentUser();
+        if (!cancelled && refreshed) {
+          dispatch({ type: "SET_SESSION", payload: refreshed });
+        }
+      } catch {
+        // A real 401 is handled globally by the api interceptor (it clears the
+        // session and emits session-expired → LOGOUT). Transient network/5xx
+        // errors are ignored here so a blip doesn't discard a valid session.
+      }
     }
 
     void bootstrap();

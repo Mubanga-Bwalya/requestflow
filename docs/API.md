@@ -27,11 +27,22 @@ Related: [`SECURITY.md`](SECURITY.md) · [`USER_ROLES_AND_PERMISSIONS.md`](USER_
 
 | | |
 |-|-|
-| **Purpose** | Issue JWT |
+| **Purpose** | Authenticate staff via Zamtel central staff auth, then issue a RequestFlow JWT |
 | **Query** | `adminOnly=true` — admin portal only |
-| **Body** | `{ email, password }` |
+| **Body** | `{ gn, password }` — staff number + AD password, forwarded to `${ZAMTEL_AUTH_BASE_URL}/api/auth/login` |
+| **Behaviour** | Auto-provisions the user on first sign-in (default role `Employee`) |
 | **Response** | `{ user, accessToken, expiresIn }` |
-| **Errors** | 401 invalid credentials; 403 non-admin when `adminOnly` |
+| **Errors** | 401 invalid credentials; 403 non-admin when `adminOnly`; 503 when Zamtel auth is unavailable |
+| **Throttle** | 5/min |
+
+### `POST /auth/dev-login` — Public (non-production only)
+
+| | |
+|-|-|
+| **Purpose** | Offline/demo sign-in by email, no password — issues a RequestFlow JWT |
+| **Body** | `{ email }` |
+| **Response** | `{ user, accessToken, expiresIn }` |
+| **Errors** | 401 unknown/inactive email; **hard-disabled (404/403) when `NODE_ENV=production`** |
 | **Throttle** | 5/min |
 
 ### `GET /auth/me`
@@ -185,7 +196,7 @@ Returns API health. No database required in lightweight test variant.
 | | |
 |-|-|
 | **Roles** | Admin only |
-| **Body** | `CreateUserDto` / `UpdateUserDto` — name, email, department, role, password (optional on create in dev) |
+| **Body** | `CreateUserDto` / `UpdateUserDto` — name, email, department, role, optional `gn` (staff number). No password field — staff authenticate via Zamtel |
 
 ---
 
@@ -322,6 +333,7 @@ All routes: **`AdminRoleGuard`** + elevated read throttle.
 | 409 | Optimistic concurrency conflict |
 | 429 | Rate limited |
 | 500 | Generic message in production; logged to `system_events` |
+| 503 | Upstream dependency unavailable (e.g. Zamtel staff auth on `POST /auth/login`) |
 
 ---
 

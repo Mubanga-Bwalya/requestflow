@@ -3,16 +3,35 @@ import { type PaginatedResponse } from "@/lib/pagination";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { cachedApi, invalidateApiCache } from "@/lib/query-cache";
 
+export type ApiDepartmentManager = { id: string; fullName: string; email: string } | null;
+
+export type ApiDepartmentSection = {
+  id: string;
+  name: string;
+  description: string | null;
+  externalDepartmentCode: string | null;
+  parentDepartmentId: string | null;
+  isActive: boolean;
+  manager: ApiDepartmentManager;
+  userCount: number;
+  activeRequestCount: number;
+  templateCount: number;
+};
+
 export type ApiDepartment = {
   id: string;
   name: string;
   description: string | null;
   externalDepartmentCode: string | null;
+  parentDepartmentId: string | null;
+  parentName: string | null;
   isActive: boolean;
-  manager: { id: string; fullName: string; email: string } | null;
+  manager: ApiDepartmentManager;
   userCount: number;
   activeRequestCount: number;
   templateCount: number;
+  /** Sub-sections (child departments). Present on top-level departments. */
+  sections: ApiDepartmentSection[];
 };
 
 /** All active departments (for dropdowns) — unpaginated. */
@@ -49,6 +68,10 @@ export async function createDepartment(payload: {
   externalDepartmentCode?: string;
   isActive?: boolean;
   cloneTemplatesFromDepartmentId?: string;
+  /** Set to create a sub-section under this top-level department. */
+  parentDepartmentId?: string;
+  /** Optional manager to assign on creation (used for sections). */
+  managerUserId?: string;
 }): Promise<ApiDepartment> {
   const { data } = await api.post<ApiDepartment>("/departments", payload);
   invalidateDepartmentCaches();
@@ -63,6 +86,8 @@ export async function updateDepartment(
     externalDepartmentCode?: string | null;
     isActive?: boolean;
     managerUserId?: string | null;
+    /** Re-parent under a top-level department, or null to make top-level. */
+    parentDepartmentId?: string | null;
   },
 ): Promise<ApiDepartment> {
   const { data } = await api.patch<ApiDepartment>(`/departments/${id}`, payload);

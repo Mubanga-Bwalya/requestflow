@@ -33,8 +33,9 @@ For supervisors: [`SUPERVISOR_README.md`](SUPERVISOR_README.md).
 
 - Use `apply-migrations.sh` / `apply-migrations.ps1` — do not hand-pick a subset in CI or docs.
 - Never run `005_auth_passwords.sql` or `deprecated/` scripts.
-- SQL and Prisma seed re-runs must **not** overwrite `password_hash` unless `--reset-passwords` or `db:seed:reset`.
 - Do not add `UNIQUE` on `departments.manager_user_id` — one user may manage multiple departments.
+
+> **Note (auth update):** Local password storage was removed. Authentication now goes through Zamtel central staff auth (GN + AD password); `users.password_hash` remains nullable but is deprecated/unused. See `016_user_gn.sql` and [`SECURITY.md`](SECURITY.md).
 
 ---
 
@@ -112,6 +113,7 @@ Never run `prisma migrate reset` on production.
 | `013_activity_admin_actions.sql` | Activity enum values for sign-in / admin audit (idempotent) |
 | `014_allow_multi_department_manager.sql` | Drop Prisma unique on `manager_user_id` if present |
 | `015_data_integrity_constraints.sql` | One OPEN missing-info per request; attachment XOR parent |
+| `016_user_gn.sql` | Adds nullable, unique `users.gn` (staff number) for Zamtel auth matching |
 
 ### Canonical apply order
 
@@ -120,9 +122,9 @@ bash backend/database/apply-migrations.sh
 cd backend && npm run prisma:generate && npm run db:seed
 ```
 
-Applied sequence: **001 → 004 → 006 → 007 → 008 → 009 → 010 → 013 → 014 → 015 → 002**
+Applied sequence: **001 → 004 → 006 → 007 → 008 → 009 → 010 → 013 → 014 → 015 → 016 → 002**
 
-CI uses the same script, then `npm run db:seed -- --reset-passwords` on a fresh database.
+CI uses the same script, then `npm run db:seed` on a fresh database.
 
 ---
 
@@ -131,7 +133,7 @@ CI uses the same script, then `npm run db:seed -- --reset-passwords` on a fresh 
 | Model | Purpose |
 |-------|---------|
 | `Department` | Org units; `managerUserId` optional (**not unique** — multi-dept managers) |
-| `User` | Accounts; `roleId`, `departmentId`, `isActive` |
+| `User` | Accounts; `roleId`, `departmentId`, `isActive`, nullable unique `gn` (staff number). Legacy `password_hash` column **deprecated/unused** — no longer in the Prisma model |
 | `Role` | Named roles |
 | `RequestTemplate` / `TemplateField` | Form definitions |
 | `Request` | Core request record + status |
@@ -155,6 +157,7 @@ CI uses the same script, then `npm run db:seed -- --reset-passwords` on a fresh 
 | One OPEN missing-info per request | Partial unique index (`015`) |
 | Attachment parent XOR | `request_id` OR `milestone_id`, not both (`001` + `015`) |
 | `manager_user_id` | **Not unique** — index only (`idx_departments_manager_user_id`) |
+| `users.gn` | Nullable **unique** (`016`) — matches staff on Zamtel sign-in |
 | List/inbox indexes | `006`, `010` |
 
 ---
@@ -165,22 +168,15 @@ CI uses the same script, then `npm run db:seed -- --reset-passwords` on a fresh 
 
 ```bash
 cd backend
-npm run db:seed                      # upsert org; preserves existing password_hash
-npm run db:seed -- --reset-passwords # reset demo passwords to requestflow (local only)
-npm run db:seed:reset                # clear workflow data + reseed with demo passwords
+npm run db:seed         # upsert org + demo users (no passwords)
+npm run db:seed:reset   # clear workflow data + reseed org and demo users
 ```
 
-**Demo password:** `requestflow` — **local development only.** Production must use admin-created users and rotated passwords (`ALLOW_DEMO_DEFAULT_PASSWORD` must be false).
+Demo users are created **without passwords** — they sign in via email-only dev-login (`POST /auth/dev-login`), which is disabled when `NODE_ENV=production`. Real staff authenticate with their **GN + AD password** via Zamtel central staff auth and are auto-provisioned on first sign-in. RequestFlow no longer stores or seeds passwords.
 
 ### SQL seed (`002`)
 
-Inserts bcrypt hashes on **first** insert only. `ON CONFLICT (email)` updates profile fields but **not** `password_hash`.
-
-### Legacy plaintext migration
-
-```bash
-npm run hash-passwords --workspace=backend   # one-time; hashes plaintext @requestflow.local rows
-```
+Inserts demo users on **first** insert only. `ON CONFLICT (email)` updates profile fields. No password material is written.
 
 **Never run** `005_auth_passwords.sql` or scripts under `database/deprecated/`.
 
@@ -199,7 +195,7 @@ cd backend && npm run db:seed:reset
 ```bash
 psql -U postgres -d requestflow -f backend/database/003_drop_all.sql
 bash backend/database/apply-migrations.sh
-cd backend && npm run db:seed -- --reset-passwords
+cd backend && npm run db:seed
 ```
 
 **Production:** do not run `003`, `011`, or demo seed without explicit policy. See [`DEPLOYMENT.md`](DEPLOYMENT.md).
@@ -221,6 +217,7 @@ npm run prisma:validate --workspace=backend
 |------|--------|
 | CI missing `013` enum values | **Fixed** — in apply script |
 | Plaintext `005` script | **Disabled** |
-| Seed overwrites passwords | **Fixed** — SQL + Prisma |
+| Local password storage | **Removed** — Zamtel auth; `password_hash` deprecated/unused |
 | `manager_user_id` unique | **Removed** (Prisma + `014`) |
+| `users.gn` unique column | **Added** (`016`) — Zamtel staff matching |
 | Migration runner / version table | **Not implemented** — documented gap |

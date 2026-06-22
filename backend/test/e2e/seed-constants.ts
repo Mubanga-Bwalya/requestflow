@@ -22,8 +22,6 @@ export const SEED = {
   },
 } as const;
 
-export const PASSWORD = 'requestflow';
-
 export const EMAILS = {
   admin: 'admin@requestflow.local',
   musa: 'musa@requestflow.local',

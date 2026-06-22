@@ -1,17 +1,15 @@
 /**
  * Demo seed via Prisma — departments, roles, users.
  *
- *   npm run db:seed                    # upsert demo org (safe to re-run; preserves passwords)
- *   npm run db:seed -- --reset-passwords # also reset demo passwords to requestflow
- *   npm run db:seed:reset              # clear workflow data + reseed (sets demo passwords)
+ *   npm run db:seed         # upsert demo org (safe to re-run)
+ *   npm run db:seed:reset   # clear workflow data + reseed
  *
- * Local/demo password: requestflow (never use in production without rotation).
+ * Authentication is via Zamtel staff auth (GN + password). Demo users have no
+ * local password; sign in to them in development with POST /auth/dev-login
+ * (email only), which is disabled in production.
  */
-import * as bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
 import {
-  ADMIN_EMAIL,
-  DEMO_PASSWORD,
   DEMO_USERS,
   DEPARTMENTS,
   DEPT_NAME,
@@ -21,10 +19,7 @@ import { resetDemoWorkflow } from './seed-reset';
 
 async function main() {
   const reset = process.argv.includes('--reset');
-  const resetPasswords =
-    reset || process.argv.includes('--reset-passwords');
   const prisma = new PrismaClient();
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   try {
     if (reset) {
@@ -46,21 +41,26 @@ async function main() {
     console.log('Seeding departments…');
     const deptIdByName = new Map<string, string>();
     for (const dept of DEPARTMENTS) {
-      const row = await prisma.department.upsert({
-        where: { name: dept.name },
-        create: {
-          id: dept.id,
-          name: dept.name,
-          description: dept.description,
-          externalDepartmentCode: dept.externalDepartmentCode,
-          isActive: true,
-        },
-        update: {
-          description: dept.description,
-          externalDepartmentCode: dept.externalDepartmentCode,
-          isActive: true,
-        },
-      });
+      // Reconcile by name first (the unique key), then by the fixed seed id, so
+      // the seed stays idempotent even when a department with this name already
+      // exists under a different id — e.g. one auto-created by the LDAP
+      // directory sync. Falls back to creating it with the canonical id.
+      const existing =
+        (await prisma.department.findFirst({
+          where: { name: { equals: dept.name, mode: 'insensitive' } },
+        })) ??
+        (await prisma.department.findUnique({ where: { id: dept.id } }));
+
+      const data = {
+        name: dept.name,
+        description: dept.description,
+        externalDepartmentCode: dept.externalDepartmentCode,
+        isActive: true,
+      };
+
+      const row = existing
+        ? await prisma.department.update({ where: { id: existing.id }, data })
+        : await prisma.department.create({ data: { id: dept.id, ...data } });
       deptIdByName.set(dept.name, row.id);
     }
 
@@ -77,7 +77,6 @@ async function main() {
           id: user.id,
           fullName: user.fullName,
           email: user.email,
-          passwordHash,
           departmentId,
           roleId,
           jobTitle: user.jobTitle,
@@ -85,7 +84,6 @@ async function main() {
         },
         update: {
           fullName: user.fullName,
-          ...(resetPasswords ? { passwordHash } : {}),
           departmentId,
           roleId,
           jobTitle: user.jobTitle,
@@ -96,6 +94,9 @@ async function main() {
 
     console.log('Assigning department managers…');
     for (const dept of DEPARTMENTS) {
+      // Real managers are assigned via the admin portal / LDAP; only the demo
+      // departments that ship with a fixture manager are wired up here.
+      if (!dept.managerEmail) continue;
       const manager = await prisma.user.findUnique({ where: { email: dept.managerEmail } });
       const departmentId = deptIdByName.get(dept.name);
       if (!manager || !departmentId) {
@@ -109,10 +110,9 @@ async function main() {
 
     const userCount = await prisma.user.count();
     const deptCount = await prisma.department.count();
-    const passwordNote = resetPasswords
-      ? `demo password: ${DEMO_PASSWORD}`
-      : 'passwords unchanged on existing users';
-    console.log(`Done. ${deptCount} departments, ${userCount} users (${passwordNote}).`);
+    console.log(
+      `Done. ${deptCount} departments, ${userCount} users (sign in via /auth/dev-login in development).`,
+    );
     if (reset) {
       console.log('Clear browser localStorage on both portals and log in again.');
     }

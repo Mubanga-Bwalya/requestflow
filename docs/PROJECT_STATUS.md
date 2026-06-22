@@ -20,7 +20,7 @@ RequestFlow is **ready for internal demonstration** and **suitable for a control
 | **Supervisor / internal demo** | **8.5 / 10** | End-to-end workflow works locally; admin logs, error handling, and security controls in place. |
 | **Controlled internal pilot** | **7.5 / 10** | Deployable on internal infrastructure with rotated secrets, applied migrations, and manual QA. Not turnkey production (no app Dockerfiles, SSO, or HRIS sync). |
 
-Scores assume: SQL migrations applied via `apply-migrations.sh`, demo passwords rotated or accounts admin-created, `NEXT_PUBLIC_SHOW_DEMO_HINTS` unset in production builds.
+Scores assume: SQL migrations applied via `apply-migrations.sh`, `ZAMTEL_AUTH_BASE_URL` configured for staff sign-in, `NODE_ENV=production` (dev-login disabled), `NEXT_PUBLIC_SHOW_DEMO_HINTS` unset in production builds.
 
 ---
 
@@ -28,7 +28,7 @@ Scores assume: SQL migrations applied via `apply-migrations.sh`, demo passwords 
 
 | Feature | Status |
 |---------|--------|
-| Authentication and role-based access | Built — server-enforced |
+| Authentication (Zamtel central staff auth — GN + AD) and role-based access | Built — server-enforced |
 | Employee request creation (templates) | Built |
 | Department manager inbox | Built |
 | Approve, reject, missing-information flows | Built |
@@ -56,7 +56,8 @@ Scores assume: SQL migrations applied via `apply-migrations.sh`, demo passwords 
 | **Multiple departments** | One user **can** manage several departments. |
 | **Admins** | `Admin` / `System Admin` have global access (backend-enforced). |
 | **Secrets** | Never commit `.env`, API keys, or `JWT_SECRET`. |
-| **Demo hints** | Login prefill requires `NEXT_PUBLIC_SHOW_DEMO_HINTS=true` (development only). |
+| **Authentication** | Staff sign in with GN + AD password via Zamtel; users auto-provisioned as `Employee`; admin promotion is manual. |
+| **Demo hints / dev-login** | Email-only dev-login and login prefill require `NEXT_PUBLIC_ENABLE_DEV_LOGIN`/`NEXT_PUBLIC_SHOW_DEMO_HINTS` and are disabled in production. |
 
 ---
 
@@ -64,7 +65,7 @@ Scores assume: SQL migrations applied via `apply-migrations.sh`, demo passwords 
 
 | Item | Risk if ignored |
 |------|-----------------|
-| No SSO / corporate IdP | Users manage passwords in-app |
+| No full OIDC/SAML SSO | Central staff auth (Zamtel GN + AD) is integrated; full SSO still planned |
 | JWT in `localStorage` | XSS could steal session — mitigate with CSP and internal network |
 | No frontend automated unit tests | UI regressions need manual or Playwright smoke |
 | No migration version table | Operators must apply SQL files in order and log what was applied |
@@ -78,7 +79,7 @@ Scores assume: SQL migrations applied via `apply-migrations.sh`, demo passwords 
 
 **Must fix or verify:**
 
-1. Rotate all demo passwords; set `ALLOW_DEMO_DEFAULT_PASSWORD=false`
+1. `ZAMTEL_AUTH_BASE_URL` configured and reachable; `NODE_ENV=production` so dev-login is disabled
 2. Strong `JWT_SECRET` (32+ characters) in secret store
 3. `CORS_ORIGINS` set to real portal URLs only
 4. `NEXT_PUBLIC_API_URL` set at frontend build time
@@ -98,7 +99,7 @@ Scores assume: SQL migrations applied via `apply-migrations.sh`, demo passwords 
 npm install
 npm run docker:up
 bash backend/database/apply-migrations.sh
-cd backend && npm run prisma:generate && npm run db:seed -- --reset-passwords
+cd backend && npm run prisma:generate && npm run db:seed
 npm run build --workspace=backend
 npm run test
 npm run dev:api    # terminal 1

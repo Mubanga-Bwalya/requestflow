@@ -1,23 +1,24 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { AuditLogService } from '../../common/audit-log/audit-log.service';
-import { SystemEventsService } from '../../common/system-events/system-events.service';
-import { allowDemoDefaultPassword } from '../../config/env';
 import { ActivityAction } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService } from '../../common/audit-log/audit-log.service';
+import { CacheKeys } from '../../common/cache/cache-keys';
+import { CacheService } from '../../common/cache/cache.service';
+import { SystemEventsService } from '../../common/system-events/system-events.service';
 import type { JwtPayload } from '../../common/auth.types';
 import { mapUserToResponse } from '../users/user-response.mapper';
 import { loadManagedDepartments } from '../../common/department-manager';
-import type { LoginDto } from './dto/login.dto';
-import { PasswordService } from './password.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { ZamtelStaffAuthService } from './zamtel-auth.service';
+import { DevAuthService } from './dev-auth.service';
 
 export const ADMIN_ROLE_NAMES = new Set(['Admin', 'System Admin']);
-const DEMO_DEFAULT_PASSWORD = 'requestflow';
+
+type LoginOptions = { adminOnly?: boolean };
 
 export type LoginResult = {
   user: ReturnType<typeof mapUserToResponse> & {
@@ -34,86 +35,81 @@ export type LoginResult = {
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly passwords: PasswordService,
     private readonly jwt: JwtService,
     private readonly audit: AuditLogService,
     private readonly systemEvents: SystemEventsService,
+    private readonly cache: CacheService,
+    private readonly zamtel: ZamtelStaffAuthService,
+    private readonly dev: DevAuthService,
   ) {}
 
-  async login(
-    dto: LoginDto,
-    options?: { adminOnly?: boolean },
+  /** Real Zamtel staff login (GN + AD password). */
+  async loginWithStaff(
+    gn: string,
+    password: string,
+    options?: LoginOptions,
   ): Promise<LoginResult> {
-    const email = dto.email?.trim();
-    const password = dto.password;
-
-    if (!email || !password) {
-      throw new UnauthorizedException('Invalid email or password');
+    let userId: string;
+    try {
+      userId = await this.zamtel.authenticate(gn, password);
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        void this.systemEvents.record({
+          level: 'WARN',
+          code: 'LOGIN_FAILED',
+          message: `Failed Zamtel staff login for gn=${gn}`,
+          path: '/auth/login',
+          httpMethod: 'POST',
+        });
+      }
+      throw err;
     }
+    return this.finalizeSession(userId, { ...options, portal: 'staff' });
+  }
 
+  /** Dev-only login by email (no password). Disabled in production. */
+  async loginAsDev(
+    email: string,
+    options?: LoginOptions,
+  ): Promise<LoginResult> {
+    const userId = await this.dev.authenticate(email);
+    return this.finalizeSession(userId, { ...options, portal: 'dev' });
+  }
+
+  /** Build the rich session response, enforce admin-portal access, sign the JWT. */
+  private async finalizeSession(
+    userId: string,
+    options: LoginOptions & { portal: 'staff' | 'dev' },
+  ): Promise<LoginResult> {
     const user = await this.prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' }, isActive: true },
+      where: { id: userId, isActive: true },
       include: {
         department: { select: { id: true, name: true } },
         role: { select: { id: true, name: true } },
       },
     });
-
     if (!user) {
-      void this.systemEvents.record({
-        level: 'WARN',
-        code: 'LOGIN_FAILED',
-        message: `Failed login for ${email}`,
-        path: '/auth/login',
-        httpMethod: 'POST',
-      });
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException();
     }
 
-    const stored = user.passwordHash?.trim();
-    if (!stored) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const valid = await this.passwords.verify(password, stored);
-    if (!valid) {
+    const roleName = user.role?.name ?? null;
+    if (options.adminOnly && (!roleName || !ADMIN_ROLE_NAMES.has(roleName))) {
       void this.systemEvents.record({
         level: 'WARN',
-        code: 'LOGIN_FAILED',
-        message: `Failed login for ${email}`,
+        code: 'ADMIN_LOGIN_DENIED',
+        message: `Non-admin user attempted admin portal sign-in (${user.email}).`,
         path: '/auth/login',
         httpMethod: 'POST',
         userId: user.id,
       });
-      throw new UnauthorizedException('Invalid email or password');
+      throw new ForbiddenException('Admin access required');
     }
 
-    if (!this.passwords.isBcryptHash(stored)) {
-      const passwordHash = await this.passwords.hashUnsafe(password);
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash },
-      });
-    }
-
-    const roleName = user.role?.name ?? null;
-    if (options?.adminOnly) {
-      if (!roleName || !ADMIN_ROLE_NAMES.has(roleName)) {
-        void this.systemEvents.record({
-          level: 'WARN',
-          code: 'ADMIN_LOGIN_DENIED',
-          message: `Non-admin user attempted admin portal sign-in (${user.email}).`,
-          path: '/auth/login',
-          httpMethod: 'POST',
-          userId: user.id,
-        });
-        throw new ForbiddenException('Admin access required');
-      }
-    }
+    // Provisioning may have refreshed profile/department — drop any stale cache.
+    await this.cache.del(CacheKeys.authUser(user.id));
 
     const profile = mapUserToResponse(user);
     const managed = await loadManagedDepartments(this.prisma, user.id);
-    const inboxDepartmentName = managed.names[0] ?? null;
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -121,25 +117,26 @@ export class AuthService {
       departmentName: profile.departmentName,
     };
     const accessToken = await this.jwt.signAsync(payload);
-    const expiresInSec =
+    const expiresIn =
       parseInt(process.env.JWT_EXPIRES_IN?.trim() ?? '', 10) || 28800;
 
-    const portal = options?.adminOnly ? 'admin portal' : 'user portal';
+    const portalLabel = options.adminOnly ? 'admin portal' : 'user portal';
+    const via = options.portal === 'dev' ? ' via dev-login' : '';
     void this.audit.record({
       userId: user.id,
       action: ActivityAction.USER_SIGNED_IN,
-      description: `Signed in to ${portal} (${user.email}).`,
+      description: `Signed in to ${portalLabel}${via} (${user.email}).`,
     });
 
     return {
       user: {
         ...profile,
-        inboxDepartmentName,
+        inboxDepartmentName: managed.names[0] ?? null,
         managedDepartmentIds: managed.ids,
         managedDepartmentNames: managed.names,
       },
       accessToken,
-      expiresIn: expiresInSec,
+      expiresIn,
     };
   }
 
@@ -161,18 +158,5 @@ export class AuthService {
       managedDepartmentIds: managed.ids,
       managedDepartmentNames: managed.names,
     };
-  }
-
-  /** Demo-only; not used in production user provisioning. */
-  static defaultPassword(): string | null {
-    return allowDemoDefaultPassword() ? DEMO_DEFAULT_PASSWORD : null;
-  }
-
-  static resolveNewUserPassword(plain?: string): string {
-    const trimmed = plain?.trim();
-    if (trimmed) return trimmed;
-    const demo = AuthService.defaultPassword();
-    if (demo) return demo;
-    throw new BadRequestException('Password is required.');
   }
 }

@@ -4,14 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ActivityAction } from '@prisma/client';
-import { allowDemoDefaultPassword, isProduction } from '../../config/env';
 import { AuditLogService } from '../../common/audit-log/audit-log.service';
 import { invalidateAdminStatsCache } from '../../common/cache/admin-stats-cache';
 import { CacheKeys } from '../../common/cache/cache-keys';
 import { CacheService } from '../../common/cache/cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
-import { PasswordService } from '../auth/password.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import { mapUserToResponse } from './user-response.mapper';
@@ -24,7 +21,6 @@ import {
 export class UsersMutationService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly passwords: PasswordService,
     private readonly cache: CacheService,
     private readonly audit: AuditLogService,
   ) {}
@@ -54,21 +50,15 @@ export class UsersMutationService {
       throw new BadRequestException('Role is required.');
     }
 
-    const plain = AuthService.resolveNewUserPassword(dto.password);
-    const passwordHash =
-      allowDemoDefaultPassword() && !dto.password?.trim()
-        ? await this.passwords.hashUnsafe(plain)
-        : await this.passwords.hash(plain);
-
     const user = await this.prisma.user.create({
       data: {
         fullName: dto.fullName.trim(),
         email,
-        passwordHash,
         departmentId,
         roleId,
         jobTitle: dto.jobTitle?.trim() || null,
         externalEmployeeId: dto.externalEmployeeId?.trim() || null,
+        gn: dto.gn?.trim() || null,
         isActive: dto.isActive ?? true,
       },
       include: {
@@ -110,19 +100,6 @@ export class UsersMutationService {
         ? await resolveUserRoleId(this.prisma, dto.roleId, dto.roleName)
         : undefined;
 
-    let passwordHash: string | undefined;
-    if (dto.password !== undefined) {
-      const plain = dto.password.trim();
-      if (isProduction() && !plain) {
-        throw new BadRequestException('Password cannot be empty.');
-      }
-      const resolved = plain || AuthService.resolveNewUserPassword(undefined);
-      passwordHash =
-        allowDemoDefaultPassword() && !plain
-          ? await this.passwords.hashUnsafe(resolved)
-          : await this.passwords.hash(resolved);
-    }
-
     const user = await this.prisma.user.update({
       where: { id },
       data: {
@@ -139,9 +116,9 @@ export class UsersMutationService {
           ? { externalEmployeeId: dto.externalEmployeeId?.trim() || null }
           : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(dto.gn !== undefined ? { gn: dto.gn?.trim() || null } : {}),
         ...(departmentId !== undefined ? { departmentId } : {}),
         ...(roleId !== undefined ? { roleId } : {}),
-        ...(passwordHash !== undefined ? { passwordHash } : {}),
       },
       include: {
         department: { select: { id: true, name: true } },

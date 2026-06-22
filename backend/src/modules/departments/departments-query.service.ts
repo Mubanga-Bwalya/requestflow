@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   paginatedResult,
   resolveListPagination,
@@ -34,8 +35,26 @@ export class DepartmentsQueryService {
     return new Map(groups.map((g) => [g.targetDepartmentId, g._count._all]));
   }
 
-  async findAll(activeOnly = true, page?: number, limit?: number) {
-    const where = activeOnly ? { isActive: true } : undefined;
+  /**
+   * Lists departments. By default returns only **top-level** departments (each
+   * with its `sections` nested) so existing dropdowns are unaffected by the
+   * hierarchy. Pass `parentDepartmentId` to list a specific department's
+   * sections, or `'ALL'` to return every row flat (top-level and sections).
+   */
+  async findAll(
+    activeOnly = true,
+    page?: number,
+    limit?: number,
+    parentDepartmentId?: string | 'ALL',
+  ) {
+    const where: Prisma.DepartmentWhereInput = {};
+    if (activeOnly) where.isActive = true;
+    if (parentDepartmentId === undefined) {
+      where.parentDepartmentId = null; // top-level only (default)
+    } else if (parentDepartmentId !== 'ALL') {
+      where.parentDepartmentId = parentDepartmentId;
+    }
+
     const activeCounts = await this.activeRequestCountsByDepartment();
 
     const pagination = resolveListPagination(page, limit);
@@ -50,7 +69,7 @@ export class DepartmentsQueryService {
       }),
     ]);
     return paginatedResult(
-      rows.map((d) => mapDepartmentRow(d, activeCounts.get(d.id) ?? 0)),
+      rows.map((d) => mapDepartmentRow(d, activeCounts)),
       total,
       pagination,
     );
@@ -66,6 +85,6 @@ export class DepartmentsQueryService {
       throw new NotFoundException(`Department not found: ${id}`);
     }
 
-    return mapDepartmentRow(d, await this.activeRequestCount(d.id));
+    return mapDepartmentRow(d, await this.activeRequestCountsByDepartment());
   }
 }

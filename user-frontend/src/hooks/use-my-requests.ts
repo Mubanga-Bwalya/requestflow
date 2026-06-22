@@ -8,6 +8,7 @@ import {
   type AppRefreshScope,
 } from "@/lib/app-refresh";
 import { apiErrorMessage } from "@/lib/api-error";
+import { withRetry } from "@/lib/retry";
 import { fetchMyRequests } from "@/lib/requests-api";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { peekApiCache, cacheScopeUserId } from "@/lib/query-cache";
@@ -53,14 +54,20 @@ export function useMyRequests(
 
       setError(null);
       try {
-        const data = await fetchMyRequests(
-          {
-            page,
-            limit: LIST_PAGE_SIZE,
-            tab,
-            q: debouncedQ || undefined,
-          },
-          signal,
+        // Note: the abort signal is intentionally NOT passed into the network
+        // request. fetchMyRequests is cache-deduped, so several consumers can
+        // share one in-flight request; cancelling it from one unmount would
+        // reject it for the others (surfacing a false "could not load"). The
+        // signal only guards setState below and stops retries after unmount.
+        const data = await withRetry(
+          () =>
+            fetchMyRequests({
+              page,
+              limit: LIST_PAGE_SIZE,
+              tab,
+              q: debouncedQ || undefined,
+            }),
+          { signal },
         );
         if (!signal?.aborted) setResult(data);
       } catch (e) {

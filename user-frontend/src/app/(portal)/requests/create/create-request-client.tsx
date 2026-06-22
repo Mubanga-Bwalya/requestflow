@@ -70,6 +70,9 @@ export function CreateRequestClient({ presetDepartment }: { presetDepartment: De
             department={wizard.department}
             departments={wizard.departments}
             loadingDepartments={wizard.loadingDepartments}
+            section={wizard.section}
+            sections={wizard.sections}
+            onSectionChange={wizard.onSectionChange}
             templates={wizard.templates}
             loadingTemplates={wizard.loadingTemplates}
             requestTypeId={wizard.requestTypeId}

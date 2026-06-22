@@ -35,4 +35,10 @@ export class UpdateDepartmentDto {
   @ValidateIf((_, v) => v !== null)
   @IsUUID()
   managerUserId?: string | null;
+
+  /** Re-parent this department under a top-level department, or null to make it top-level. */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  parentDepartmentId?: string | null;
 }

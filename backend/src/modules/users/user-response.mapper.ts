@@ -4,6 +4,7 @@ export function mapUserToResponse(row: {
   email: string;
   jobTitle: string | null;
   externalEmployeeId?: string | null;
+  gn?: string | null;
   isActive: boolean;
   department: { id: string; name: string } | null;
   role: { id: string; name: string } | null;
@@ -14,6 +15,7 @@ export function mapUserToResponse(row: {
     email: row.email,
     jobTitle: row.jobTitle,
     externalEmployeeId: row.externalEmployeeId ?? null,
+    gn: row.gn ?? null,
     isActive: row.isActive,
     departmentId: row.department?.id ?? null,
     departmentName: row.department?.name ?? null,

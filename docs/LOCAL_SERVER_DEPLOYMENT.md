@@ -68,12 +68,12 @@ NODE_ENV=production
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/requestflow
 JWT_SECRET=<32+ random characters>
 JWT_EXPIRES_IN=28800
+ZAMTEL_AUTH_BASE_URL=http://10.3.104.141:7071
 PORT=4000
 CORS_ORIGINS=https://requests.company.local,https://admin-requests.company.local
 REDIS_ENABLED=true
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
-ALLOW_DEMO_DEFAULT_PASSWORD=false
 ```
 
 ### Frontends (before build)
@@ -105,8 +105,8 @@ PGHOST=localhost PGUSER=requestflow PGPASSWORD=*** PGDATABASE=requestflow \
 Windows: `.\backend\database\apply-migrations.ps1`
 
 4. Generate Prisma client and seed policy:
-   - **Preferred:** empty workflow + admin-created users via portal
-   - **Pilot:** `cd backend && npm run db:seed -- --reset-passwords` once, then rotate all passwords
+   - **Preferred:** empty workflow — staff auto-provisioned on first Zamtel sign-in (default role `Employee`); promote admins manually
+   - Demo seed users have no password and rely on dev-login, which is disabled when `NODE_ENV=production`
 
 5. **Record applied SQL files** in an operator log (no version table in app).
 
@@ -347,11 +347,11 @@ See [`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md) before any schema change.
 ## Post-deploy checklist
 
 - [ ] `GET /health` OK
-- [ ] User and admin login (admin `adminOnly` gate)
+- [ ] Staff login (GN + AD password via Zamtel) and admin login (`adminOnly` gate)
+- [ ] `ZAMTEL_AUTH_BASE_URL` reachable; `NODE_ENV=production` (dev-login disabled)
 - [ ] Admin `/logs` loads
 - [ ] `npm run audit:deployment-smoke` PASS
 - [ ] CORS from both portal URLs
-- [ ] Demo passwords rotated
 - [ ] Backup taken and migration log updated
 
 See [`PRODUCTION_DEPLOYMENT_CHECKLIST.md`](PRODUCTION_DEPLOYMENT_CHECKLIST.md).

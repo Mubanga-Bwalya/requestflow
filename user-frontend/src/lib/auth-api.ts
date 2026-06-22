@@ -42,20 +42,39 @@ export class LoginError extends Error {
   }
 }
 
-export async function login(email: string, password: string): Promise<AppSession> {
+/** Zamtel staff login — GN (staff number) + AD password. */
+export async function login(gn: string, password: string): Promise<AppSession> {
   try {
     const { data } = await api.post<LoginResponse>("/auth/login", {
-      email: email.trim(),
+      gn: gn.trim(),
       password,
     });
     return toSession(data);
   } catch (e) {
     if (axios.isAxiosError(e) && e.response?.status === 401) {
-      throw new LoginError("Invalid email or password.");
+      throw new LoginError("Invalid Zamtel ID or password.");
+    }
+    if (axios.isAxiosError(e) && e.response?.status === 503) {
+      throw new LoginError("Zamtel sign-in service is unavailable. Try again shortly.");
     }
     throw new LoginError(
       apiErrorMessage(e, "Login failed. Check your credentials and ensure the API is running."),
     );
+  }
+}
+
+/** Dev-only login by email (no password). Disabled in production by the API. */
+export async function devLogin(email: string): Promise<AppSession> {
+  try {
+    const { data } = await api.post<LoginResponse>("/auth/dev-login", {
+      email: email.trim(),
+    });
+    return toSession(data);
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 401) {
+      throw new LoginError("Unknown or inactive user.");
+    }
+    throw new LoginError(apiErrorMessage(e, "Developer sign-in failed."));
   }
 }
 

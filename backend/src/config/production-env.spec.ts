@@ -8,8 +8,7 @@ describe('production env guards', () => {
   beforeEach(() => {
     process.env = { ...env };
     delete process.env.NODE_ENV;
-    delete process.env.ALLOW_DEMO_DEFAULT_PASSWORD;
-    delete process.env.ALLOW_LEGACY_PLAINTEXT_PASSWORDS;
+    delete process.env.ZAMTEL_AUTH_BASE_URL;
     delete process.env.JWT_SECRET;
     delete process.env.CORS_ORIGINS;
   });
@@ -18,26 +17,19 @@ describe('production env guards', () => {
     process.env = env;
   });
 
-  it('allows demo flags in development', () => {
-    process.env.ALLOW_DEMO_DEFAULT_PASSWORD = 'true';
-    process.env.ALLOW_LEGACY_PLAINTEXT_PASSWORDS = 'true';
+  it('does not require Zamtel config in development', () => {
     expect(() => assertProductionEnvFlags()).not.toThrow();
   });
 
-  it('rejects ALLOW_DEMO_DEFAULT_PASSWORD=true in production', () => {
+  it('requires ZAMTEL_AUTH_BASE_URL in production', () => {
     process.env.NODE_ENV = 'production';
-    process.env.ALLOW_DEMO_DEFAULT_PASSWORD = 'true';
-    expect(() => assertProductionEnvFlags()).toThrow(
-      /ALLOW_DEMO_DEFAULT_PASSWORD/,
-    );
+    expect(() => assertProductionEnvFlags()).toThrow(/ZAMTEL_AUTH_BASE_URL/);
   });
 
-  it('rejects ALLOW_LEGACY_PLAINTEXT_PASSWORDS=true in production', () => {
+  it('accepts a configured Zamtel base URL in production', () => {
     process.env.NODE_ENV = 'production';
-    process.env.ALLOW_LEGACY_PLAINTEXT_PASSWORDS = 'true';
-    expect(() => assertProductionEnvFlags()).toThrow(
-      /ALLOW_LEGACY_PLAINTEXT_PASSWORDS/,
-    );
+    process.env.ZAMTEL_AUTH_BASE_URL = 'http://10.3.104.141:7071';
+    expect(() => assertProductionEnvFlags()).not.toThrow();
   });
 
   it('rejects wildcard entries in CORS_ORIGINS in production', () => {
@@ -46,13 +38,10 @@ describe('production env guards', () => {
     expect(() => parseCorsOrigins()).toThrow(/wildcards/);
   });
 
-  it('assertBootstrapSecurity fails on unsafe production bundle', () => {
+  it('assertBootstrapSecurity fails when Zamtel auth is unconfigured in production', () => {
     process.env.NODE_ENV = 'production';
-    process.env.ALLOW_DEMO_DEFAULT_PASSWORD = 'true';
     process.env.JWT_SECRET = 'a'.repeat(40);
     process.env.CORS_ORIGINS = 'https://user.example.com';
-    expect(() => assertBootstrapSecurity()).toThrow(
-      /ALLOW_DEMO_DEFAULT_PASSWORD/,
-    );
+    expect(() => assertBootstrapSecurity()).toThrow(/ZAMTEL_AUTH_BASE_URL/);
   });
 });

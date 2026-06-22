@@ -19,6 +19,7 @@ FILES=(
   013_activity_admin_actions.sql
   014_allow_multi_department_manager.sql
   015_data_integrity_constraints.sql
+  016_user_gn.sql
   002_seed_core_data.sql
 )
 

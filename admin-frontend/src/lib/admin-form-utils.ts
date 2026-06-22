@@ -2,7 +2,7 @@ export const USER_NAME_MAX = 120;
 export const USER_EMAIL_MAX = 254;
 export const USER_EXTERNAL_ID_MAX = 64;
 export const USER_JOB_TITLE_MAX = 120;
-export const USER_PASSWORD_MIN = 12;
+export const USER_GN_MAX = 64;
 export const DEPT_NAME_MIN = 2;
 export const DEPT_NAME_MAX = 120;
 export const DEPT_DESC_MAX = 500;
@@ -27,19 +27,6 @@ export function isValidEmail(value: string): boolean {
 
 export function isValidUuid(value: string): boolean {
   return UUID_RE.test(value.trim());
-}
-
-export function validateUserPassword(value: string): string | null {
-  const password = value.trim();
-  if (!password) return null;
-  if (password.length < USER_PASSWORD_MIN) {
-    return `Password must be at least ${USER_PASSWORD_MIN} characters.`;
-  }
-  const lower = password.toLowerCase();
-  if (["requestflow", "password", "password123", "admin", "admin123"].includes(lower)) {
-    return "Password is too common. Choose a stronger password.";
-  }
-  return null;
 }
 
 export function validateTemplateOptions(fieldType: string, optionsCsv: string): string | null {

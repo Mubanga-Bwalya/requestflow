@@ -39,8 +39,9 @@ Internal request and progress-tracking system for Zamtel departments. Employees 
 | API | NestJS 11, TypeScript |
 | ORM / client | Prisma 5 (PostgreSQL) |
 | Database | PostgreSQL 16 |
+| Authentication | Zamtel central staff auth (GN + AD password) → RequestFlow-issued JWT |
 | Cache (optional) | Redis 7 via `ioredis` |
-| Email (optional) | Resend |
+| Email (optional) | Zamtel internal SMTP via `nodemailer` |
 
 ---
 
@@ -77,7 +78,7 @@ npm install
 npm run docker:up
 cp backend/.env.example backend/.env
 bash backend/database/apply-migrations.sh   # Windows: .\backend\database\apply-migrations.ps1
-cd backend && npm run prisma:generate && npm run db:seed -- --reset-passwords
+cd backend && npm run prisma:generate && npm run db:seed
 npm run build --workspace=backend
 
 # Three terminals from repo root:
@@ -88,7 +89,7 @@ npm run dev:admin    # http://localhost:3001
 
 Copy `user-frontend/.env.example` → `.env.local` and `admin-frontend/.env.example` → `.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:4000`.
 
-**Demo login (development only):** password `requestflow` — see [`docs/SETUP.md`](docs/SETUP.md#demo-accounts).
+**Sign-in:** Staff authenticate with their **GN (staff number) + AD password** via Zamtel central staff auth (`ZAMTEL_AUTH_BASE_URL`). For offline/demo work, an email-only **Developer** sign-in tab (`POST /auth/dev-login`, no password) appears when `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true` or `NEXT_PUBLIC_SHOW_DEMO_HINTS=true` — see [`docs/SETUP.md`](docs/SETUP.md#demo-accounts). Dev-login is hard-disabled when `NODE_ENV=production`.
 
 ---
 
@@ -111,7 +112,7 @@ Copy `user-frontend/.env.example` → `.env.local` and `admin-frontend/.env.exam
 | `npm run audit:regression` | Full Playwright regression audit |
 | `npm run audit:workflow-proof` | Workflow proof audit |
 
-Backend-only: `npm run db:seed`, `npm run hash-passwords` — see [`docs/DATABASE.md`](docs/DATABASE.md).
+Backend-only: `npm run db:seed` — see [`docs/DATABASE.md`](docs/DATABASE.md).
 
 ---
 

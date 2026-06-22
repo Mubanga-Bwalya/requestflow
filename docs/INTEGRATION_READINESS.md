@@ -43,7 +43,7 @@ RequestFlow is designed as a standalone internal application first, with clear i
 
 | Aspect | Today | Integration path |
 |--------|-------|------------------|
-| User records | Created in admin portal or seed scripts | Sync from HR via scheduled job or API webhook |
+| User records | Auto-provisioned on first Zamtel sign-in, or created in admin portal | Sync from HR via scheduled job or API webhook |
 | Departments | Managed in admin portal | Import org structure from HR master data |
 | Manager appointment | Manual `manager_user_id` per department | Map from HR “reports to” or role data |
 | Deactivation | Admin sets `isActive=false` | HR offboarding job deactivates accounts |
@@ -52,17 +52,18 @@ RequestFlow is designed as a standalone internal application first, with clear i
 
 ---
 
-### 2. Single sign-on (SSO) or internal authentication
+### 2. Central staff authentication / SSO
 
 | Aspect | Today | Integration path |
 |--------|-------|------------------|
-| Authentication | Email + password; JWT issued by RequestFlow | OIDC/SAML bridge or reverse-proxy auth |
-| Admin login | Same flow with `adminOnly=true` gate | Same IdP with role claims |
+| Authentication | **Integrated** — staff sign in with GN (staff number) + AD password via Zamtel central staff auth (`ZAMTEL_AUTH_BASE_URL`); RequestFlow mints its own JWT | Extend to full OIDC/SAML bridge if required |
+| User provisioning | **Automatic** — users created on first Zamtel sign-in (default role `Employee`), matched by `gn` → `email` | Map richer profile/department data from the directory |
+| Admin login | Same flow with `adminOnly=true` gate; admin promotion is manual | Same IdP with role claims |
 | Session storage | JWT in browser `localStorage` | Migrate to httpOnly cookies with CSRF |
 
-**Built today:** `POST /auth/login`, `GET /auth/me`, server-side role reload on every request.
+**Integrated today:** `POST /auth/login` (GN + AD password → Zamtel), `GET /auth/me`, auto-provisioning, server-side role reload on every request. An email-only `POST /auth/dev-login` exists for offline/demo use and is hard-disabled when `NODE_ENV=production`.
 
-**Not built:** Corporate IdP integration, token exchange, or automatic user provisioning from SSO claims.
+**Not built:** Full OIDC/SAML SSO, token exchange, or HRIS-driven profile sync beyond first-sign-in provisioning.
 
 ---
 
@@ -81,11 +82,11 @@ RequestFlow is designed as a standalone internal application first, with clear i
 
 | Aspect | Today | Integration path |
 |--------|-------|------------------|
-| Email | Optional Resend API (`EMAIL_ENABLED=true`) | Corporate SMTP relay or internal notification gateway |
+| Email | Zamtel internal SMTP via nodemailer (`EMAIL_ENABLED=true`, `SMTP_HOST` set) | Point `SMTP_HOST` at the corporate relay or internal notification gateway |
 | SMS | Not implemented | External SMS provider or internal messaging API |
 | In-app | Built (`notifications` table) | No change required |
 
-**Built today:** Email service with templates for key workflow events when Resend is configured. In-app notifications always work.
+**Built today:** Email service with templates for key workflow events, delivered through Zamtel's internal SMTP relay (nodemailer) when configured. In-app notifications always work.
 
 ---
 
@@ -130,7 +131,7 @@ RequestFlow is designed as a standalone internal application first, with clear i
 |------------|--------|-------|
 | REST API for users and departments | Yes | Admin-authenticated CRUD |
 | REST API for requests and assignments | Yes | Workflow enforced server-side |
-| JWT authentication | Yes | Replaceable with SSO bridge |
+| Central staff authentication | Yes | Zamtel GN + AD password via `ZAMTEL_AUTH_BASE_URL`; RequestFlow-issued JWT |
 | Role-based access control | Yes | Roles stored in database |
 | Audit tables | Yes | `activity_logs`, `system_events` |
 | Health check | Yes | `GET /health` |
@@ -143,7 +144,7 @@ RequestFlow is designed as a standalone internal application first, with clear i
 
 | Item | Effort | Owner |
 |------|--------|-------|
-| SSO / corporate IdP | Medium–high | IT security + dev |
+| Full OIDC/SAML SSO (central staff auth already integrated) | Medium–high | IT security + dev |
 | HR user provisioning sync | Medium | IT + HR |
 | Corporate email relay | Low–medium | IT |
 | File storage / DMS | Medium | IT + dev |
@@ -156,14 +157,14 @@ RequestFlow is designed as a standalone internal application first, with clear i
 
 ### Phase 1 — Pilot (current)
 
-- Manual user and department setup via admin portal
-- RequestFlow-native login
-- Optional Resend email
+- Zamtel central staff auth (GN + AD password); users auto-provisioned on first sign-in
+- Department setup and admin promotion via admin portal
+- Optional email via Zamtel internal SMTP (nodemailer)
 - Internal server deployment
 
 ### Phase 2 — Identity
 
-- SSO via corporate IdP
+- Full OIDC/SAML SSO via corporate IdP (extends current central staff auth)
 - httpOnly session cookies
 - Automated deactivation from HR offboarding feed
 

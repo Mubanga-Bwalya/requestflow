@@ -24,10 +24,14 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
   const router = useRouter();
 
   const [step, setStep] = useState<WizardStep>(1);
-  const [departments, setDepartments] = useState<{ id: string; name: string; description: string | null }[]>([]);
+  const [departments, setDepartments] = useState<
+    { id: string; name: string; description: string | null; sections: { id: string; name: string }[] }[]
+  >([]);
   const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [departmentsError, setDepartmentsError] = useState<string | null>(null);
   const [department, setDepartment] = useState<Department | null>(presetDepartment);
+  /** Selected sub-section name under `department`, or null for department-level. */
+  const [section, setSection] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [requestTypeId, setRequestTypeId] = useState("");
   const [requestType, setRequestType] = useState<RequestTypeDef | null>(null);
@@ -51,6 +55,13 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     return validateTemplateFields(requestType.fields, values, allowUploads);
   }, [requestType, values, allowUploads]);
 
+  const sections = useMemo(
+    () => departments.find((d) => d.name === department)?.sections ?? [],
+    [departments, department],
+  );
+  /** The leaf the request targets: the section when chosen, else the department. */
+  const targetLeaf = section ?? department;
+
   const canProceedStep1 = Boolean(department && requestTypeId && !loadingTemplates && templates.length);
   const canProceedStep2 = requestType ? Object.keys(fieldValidation).length === 0 && !loadingFields : false;
   const canSubmit = canProceedStep2 && Boolean(userId);
@@ -60,7 +71,16 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     setDepartmentsError(null);
     fetchActiveDepartments()
       .then((rows) => {
-        setDepartments(rows);
+        setDepartments(
+          rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            sections: (r.sections ?? [])
+              .filter((s) => s.isActive)
+              .map((s) => ({ id: s.id, name: s.name })),
+          })),
+        );
         if (presetDepartment && rows.some((d) => d.name === presetDepartment)) {
           setDepartment(presetDepartment);
         } else if (!presetDepartment && rows.length === 1) {
@@ -86,13 +106,13 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
   }, []);
 
   useEffect(() => {
-    if (!department) {
+    if (!targetLeaf) {
       setTemplates([]);
       return;
     }
     setLoadingTemplates(true);
     setApiError(null);
-    fetchTemplatesForDepartment(department)
+    fetchTemplatesForDepartment(targetLeaf)
       .then((rows) => {
         setTemplates(rows);
         setRequestTypeId((prev) => (rows.some((t) => t.id === prev) ? prev : ""));
@@ -102,26 +122,35 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
         setApiError("We could not load request types. Check your connection and try again.");
       })
       .finally(() => setLoadingTemplates(false));
-  }, [department]);
+  }, [targetLeaf]);
 
   useEffect(() => {
-    if (!requestTypeId || !department) {
+    if (!requestTypeId || !targetLeaf) {
       setRequestType(null);
       return;
     }
     setLoadingFields(true);
     setApiError(null);
-    fetchTemplateDetail(requestTypeId, department)
+    fetchTemplateDetail(requestTypeId, targetLeaf)
       .then(setRequestType)
       .catch(() => {
         setRequestType(null);
         setApiError("Could not load form fields for this request type.");
       })
       .finally(() => setLoadingFields(false));
-  }, [requestTypeId, department]);
+  }, [requestTypeId, targetLeaf]);
 
   function onDepartmentChange(next: Department) {
     setDepartment(next);
+    setSection(null);
+    setRequestTypeId("");
+    setRequestType(null);
+    setValues({});
+    setFieldErrors({});
+  }
+
+  function onSectionChange(next: string) {
+    setSection(next || null);
     setRequestTypeId("");
     setRequestType(null);
     setValues({});
@@ -153,7 +182,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     setError(null);
     try {
       const created = await createRequest({
-        targetDepartmentName: department,
+        targetDepartmentName: section ?? department,
         templateId: requestType.id,
         title: deriveRequestTitle(trimmed, requestType),
         description: deriveRequestDescription(trimmed, requestType),
@@ -204,6 +233,7 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     setCreatedId(null);
     setStep(1);
     setDepartment(presetDepartment);
+    setSection(null);
     setRequestTypeId("");
     setRequestType(null);
     setPriority(defaultPriority);
@@ -220,6 +250,9 @@ export function useCreateRequest(presetDepartment: Department | null, userId: st
     loadingDepartments,
     departmentsError,
     department,
+    section,
+    sections,
+    onSectionChange,
     templates,
     requestTypeId,
     setRequestTypeId,

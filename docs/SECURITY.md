@@ -12,7 +12,7 @@ RequestFlow is designed for **internal use only** on Zamtel’s network. Securit
 
 | Protection | What it means |
 |------------|---------------|
-| Login required | Users must sign in with email and password |
+| Login required | Staff sign in with their GN (staff number) + AD password via Zamtel central staff auth |
 | Role-based access | Employees, managers, and admins see only what their role allows |
 | Server-side enforcement | The API checks every request; the UI cannot bypass rules |
 | Department boundaries | Managers only act on requests for departments they manage |
@@ -29,15 +29,16 @@ Full technical detail below. For deployment assumptions: [`LOCAL_SERVER_DEPLOYME
 | Aspect | Implementation |
 |--------|----------------|
 | Method | JWT Bearer (`Authorization: Bearer <token>`) |
-| Login | `POST /auth/login` — bcrypt password verify |
-| Admin login | `POST /auth/login?adminOnly=true` — role must be `Admin` or `System Admin` |
+| Login | `POST /auth/login` with `{ gn, password }` — credentials forwarded to `${ZAMTEL_AUTH_BASE_URL}/api/auth/login`; RequestFlow then mints its own JWT |
+| Admin login | `POST /auth/login?adminOnly=true` — DB role must be `Admin` or `System Admin` (returns 403 otherwise) |
+| Auto-provisioning | First Zamtel sign-in matches by `gn` → `email` → else creates the user with default role **Employee**; department resolved by name (created if missing; fallback "Shared Services"). Admin promotion stays **manual** |
+| Dev-login | `POST /auth/dev-login` with `{ email }` (no password) for offline/demo — **hard-disabled when `NODE_ENV=production`** |
 | Token storage (client) | `localStorage` (`requestflow_session` / `requestflow_admin_session`) — **pilot risk:** XSS could exfiltrate JWT; mitigate with CSP, internal network, and planned httpOnly cookie migration |
 | Token expiry | `JWT_EXPIRES_IN` seconds (default 28800 = 8h) |
 | Secret | `JWT_SECRET` — min 32 chars in production; weak defaults rejected at startup |
 | Role in token | **Not trusted** — reloaded from DB in `JwtStrategy.validate()` |
 | Inactive users | Blocked at login and on each JWT validation |
-| Password hashing | bcrypt (10 rounds); policy min 12 chars for admin-created passwords |
-| Demo password | `requestflow` — blocked as default in production (`ALLOW_DEMO_DEFAULT_PASSWORD`) |
+| Local passwords | **Removed** — RequestFlow no longer stores or verifies passwords; the legacy `users.password_hash` column remains nullable but is deprecated/unused |
 
 ---
 
@@ -104,11 +105,11 @@ Explicit origin list via `CORS_ORIGINS`. Wildcard `*` **rejected** in production
 | Variable | Notes |
 |----------|-------|
 | `JWT_SECRET` | Required production; never commit |
+| `ZAMTEL_AUTH_BASE_URL` | Required production; base URL of Zamtel central staff auth (e.g. `http://10.3.104.141:7071`) |
 | `DATABASE_URL` | Never commit |
-| `RESEND_API_KEY` | Never commit; use empty placeholder in `.env.example`. Rotate in Resend if ever committed to git history |
+| `SMTP_USER` / `SMTP_PASS` | Never commit; use empty placeholders in `.env.example`. Rotate on the SMTP relay if ever committed to git history |
 | `DIAGNOSTICS_INGEST_SECRET` | Optional; when set, allows unauthenticated ingest via `X-Diagnostics-Ingest-Secret` header |
-| `ALLOW_DEMO_DEFAULT_PASSWORD` | Must be false/unset in production |
-| `ALLOW_LEGACY_PLAINTEXT_PASSWORDS` | Must be false/unset in production |
+| `NODE_ENV` | Set to `production` in prod — hard-disables `POST /auth/dev-login` |
 
 `.env`, `.env.local` are gitignored.
 
