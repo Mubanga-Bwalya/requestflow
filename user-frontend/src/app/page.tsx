@@ -10,9 +10,9 @@ export default function HomePage() {
   const { state } = useAuth();
 
   useEffect(() => {
-    if (!state.authReady) return;
+    if (!state.sessionReady) return;
     router.replace(state.auth.isLoggedIn ? "/dashboard" : "/login");
-  }, [state.authReady, state.auth.isLoggedIn, router]);
+  }, [state.sessionReady, state.auth.isLoggedIn, router]);
 
   return <LoadingScreen />;
 }

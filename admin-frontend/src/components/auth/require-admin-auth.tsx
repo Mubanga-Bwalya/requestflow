@@ -13,16 +13,17 @@ export function RequireAdminAuth({ children }: { children: ReactNode }) {
   const isAdmin = isAdminRole(state.auth.roleName);
 
   useEffect(() => {
-    if (!state.authReady) return;
+    if (!state.sessionReady) return;
     if (!state.auth.isLoggedIn) {
       router.replace("/login");
     }
-  }, [state.authReady, state.auth.isLoggedIn, router]);
+  }, [state.sessionReady, state.auth.isLoggedIn, router]);
+
+  if (!state.sessionReady) {
+    return <LoadingScreen />;
+  }
 
   if (!state.auth.isLoggedIn) {
-    if (!state.authReady) {
-      return <LoadingScreen />;
-    }
     return <LoadingScreen />;
   }
 

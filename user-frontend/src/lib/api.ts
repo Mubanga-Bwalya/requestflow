@@ -1,5 +1,6 @@
 import axios from "axios";
 import { resolveApiBaseUrl } from "@/lib/api-base-url";
+import { retryGetOnNetworkError } from "@/lib/api-retry";
 import { clearSession, getAccessToken } from "@/lib/session";
 import { emitSessionExpired } from "@/lib/session-events";
 import { invalidateApiCache } from "@/lib/query-cache";
@@ -21,15 +22,23 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (axios.isAxiosError(error)) {
-      const url = error.config?.url ?? "";
-      if (error.response?.status === 401 && !url.includes("/auth/login")) {
+      try {
+        return await retryGetOnNetworkError(api, error);
+      } catch (retryError) {
+        error = retryError;
+      }
+
+      const url = axios.isAxiosError(error) ? (error.config?.url ?? "") : "";
+      if (axios.isAxiosError(error) && error.response?.status === 401 && !url.includes("/auth/login")) {
         clearSession();
         invalidateApiCache();
         emitSessionExpired();
       }
-      reportClientApiFailure(error);
+      if (axios.isAxiosError(error)) {
+        reportClientApiFailure(error);
+      }
     }
     return Promise.reject(error);
   },

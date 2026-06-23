@@ -58,11 +58,11 @@ export function useLoginPage(options: Options = {}) {
   }, [mode, gn, email, password]);
 
   useEffect(() => {
-    if (!state.authReady) return;
+    if (!state.sessionReady) return;
     if (state.auth.isLoggedIn) {
       router.replace("/dashboard");
     }
-  }, [state.authReady, state.auth.isLoggedIn, router]);
+  }, [state.sessionReady, state.auth.isLoggedIn, router]);
 
   function clearError(field: keyof FieldErrors) {
     if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -111,7 +111,7 @@ export function useLoginPage(options: Options = {}) {
     }
   }
 
-  const showLoading = !state.authReady || state.auth.isLoggedIn;
+  const showLoading = !state.sessionReady || state.auth.isLoggedIn;
 
   return {
     showLoading,

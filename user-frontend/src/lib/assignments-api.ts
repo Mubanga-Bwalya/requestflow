@@ -3,7 +3,7 @@ import { api } from "@/lib/api";
 import { type PaginatedResponse } from "@/lib/pagination";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { invalidateNotificationCaches } from "@/lib/notifications-api";
-import { cacheScopeUserId, cachedApi, invalidateApiCache } from "@/lib/query-cache";
+import { invalidateApiCache } from "@/lib/query-cache";
 import type { ListTabBucket } from "@/lib/request-status-groups";
 import type { Assignment } from "@/types/task";
 
@@ -18,19 +18,6 @@ function invalidateAssignmentCaches() {
   emitAppRefresh("requests");
 }
 
-function myAssignmentsCacheKey(params?: {
-  page?: number;
-  limit?: number;
-  tab?: ListTabBucket;
-  q?: string;
-}) {
-  const page = params?.page ?? 1;
-  const limit = params?.limit ?? LIST_PAGE_SIZE;
-  const tab = params?.tab ?? "ALL";
-  const q = params?.q?.trim() ?? "";
-  return `assignments:mine:${cacheScopeUserId()}:${page}:${limit}:${tab}:${q}`;
-}
-
 export async function fetchMyAssignments(
   params?: { page?: number; limit?: number; tab?: ListTabBucket; q?: string },
   signal?: AbortSignal,
@@ -39,19 +26,16 @@ export async function fetchMyAssignments(
   const limit = params?.limit ?? LIST_PAGE_SIZE;
   const tab = params?.tab ?? "ALL";
   const q = params?.q?.trim() ?? "";
-  const key = myAssignmentsCacheKey(params);
-  return cachedApi(key, async () => {
-    const { data } = await api.get<PaginatedResponse<AssignmentDetail>>("/assignments", {
-      params: {
-        page,
-        limit,
-        ...(tab !== "ALL" ? { tab } : {}),
-        ...(q ? { q } : {}),
-      },
-      signal,
-    });
-    return data;
+  const { data } = await api.get<PaginatedResponse<AssignmentDetail>>("/assignments", {
+    params: {
+      page,
+      limit,
+      ...(tab !== "ALL" ? { tab } : {}),
+      ...(q ? { q } : {}),
+    },
+    signal,
   });
+  return data;
 }
 
 export async function fetchAssignmentDetail(id: string): Promise<AssignmentDetail> {

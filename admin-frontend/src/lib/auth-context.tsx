@@ -3,6 +3,7 @@
 /** JWT session + UI preferences; domain data comes from the API. */
 
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import axios from "axios";
 import { fetchCurrentUser } from "@/lib/auth-api";
 import { invalidateApiCache } from "@/lib/query-cache";
 import { clearSession, loadSession, saveSession, type AppSession } from "@/lib/session";
@@ -24,14 +25,14 @@ type AuthState = {
 
 type State = {
   auth: AuthState;
-  authReady: boolean;
+  sessionReady: boolean;
   accessibility: AccessibilitySettings;
 };
 
 type Action =
   | { type: "SET_SESSION"; payload: AppSession }
   | { type: "LOGOUT" }
-  | { type: "AUTH_READY" }
+  | { type: "SESSION_READY" }
   | { type: "SET_ACCESSIBILITY"; payload: Partial<AccessibilitySettings> };
 
 function sessionToAuth(session: AppSession): AuthState {
@@ -54,7 +55,7 @@ function sessionToAuth(session: AppSession): AuthState {
 function buildInitialState(): State {
   return {
     auth: { isLoggedIn: false },
-    authReady: false,
+    sessionReady: false,
     accessibility: { largeText: false, highContrast: false, reduceMotion: false },
   };
 }
@@ -71,8 +72,8 @@ function reducer(state: State, action: Action): State {
       invalidateApiCache();
       return { ...state, auth: { isLoggedIn: false } };
     }
-    case "AUTH_READY":
-      return { ...state, authReady: true };
+    case "SESSION_READY":
+      return { ...state, sessionReady: true };
     case "SET_ACCESSIBILITY":
       return { ...state, accessibility: { ...state.accessibility, ...action.payload } };
     default:
@@ -99,28 +100,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function bootstrap() {
       const stored = loadSession();
-      if (!stored) {
-        if (!cancelled) dispatch({ type: "AUTH_READY" });
-        return;
-      }
-
-      // Hydrate from the stored session immediately (after mount, so server and
-      // client first renders match), then confirm/refresh against the server.
-      if (!cancelled) {
+      if (stored) {
         dispatch({ type: "SET_SESSION", payload: stored });
-        dispatch({ type: "AUTH_READY" });
-      }
-
-      try {
-        const refreshed = await fetchCurrentUser();
-        if (!cancelled && refreshed) {
-          dispatch({ type: "SET_SESSION", payload: refreshed });
+        try {
+          const refreshed = await fetchCurrentUser();
+          if (!cancelled && refreshed) {
+            dispatch({ type: "SET_SESSION", payload: refreshed });
+          }
+        } catch (e) {
+          if (!cancelled && axios.isAxiosError(e) && e.response?.status === 401) {
+            dispatch({ type: "LOGOUT" });
+          }
         }
-      } catch {
-        // A real 401 is handled globally by the api interceptor (it clears the
-        // session and emits session-expired → LOGOUT). Transient network/5xx
-        // errors are ignored here so a blip doesn't discard a valid session.
       }
+      if (!cancelled) dispatch({ type: "SESSION_READY" });
     }
 
     void bootstrap();
