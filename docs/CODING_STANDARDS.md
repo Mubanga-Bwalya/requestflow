@@ -108,9 +108,9 @@ Phase 5 splits applied:
 
 ## Secrets
 
-- Never commit `.env`, API keys, or real passwords
+- Never commit `.env`, API keys, or secrets (`JWT_SECRET`, SMTP credentials)
 - `.env.example` uses empty placeholders only
-- Demo password `requestflow` — development only
+- Authentication is delegated to Zamtel central staff auth (`ZAMTEL_AUTH_BASE_URL`); RequestFlow stores no passwords. Email-only dev-login is development-only and disabled when `NODE_ENV=production`
 
 ---
 

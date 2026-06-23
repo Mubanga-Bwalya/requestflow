@@ -1,9 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 import { resolveEmailConfig } from '../../config/email';
 import { SystemEventsService } from '../system-events/system-events.service';
-
-const RESEND_ENDPOINT = 'https://api.resend.com/emails';
-const SEND_TIMEOUT_MS = 10_000;
 
 export type SendEmailInput = {
   to: string;
@@ -11,13 +9,53 @@ export type SendEmailInput = {
   html: string;
 };
 
-/** Sends transactional email via Resend; never throws to callers. */
+/**
+ * Sends transactional email via Zamtel's internal SMTP (nodemailer).
+ *
+ * When EMAIL_ENABLED is not 'true' the service is inert. When enabled but
+ * SMTP_HOST is unset, each email is logged instead of sent — local dev and CI
+ * keep working without any SMTP plumbing. Failed sends are recorded as system
+ * events and swallowed: email is auxiliary and must never break the request
+ * path that triggered it.
+ */
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleDestroy {
   private readonly logger = new Logger(EmailService.name);
   private readonly config = resolveEmailConfig();
+  private readonly transporter: nodemailer.Transporter | null;
 
-  constructor(private readonly systemEvents: SystemEventsService) {}
+  constructor(private readonly systemEvents: SystemEventsService) {
+    if (!this.config.enabled || !this.config.smtp) {
+      if (this.config.enabled) {
+        this.logger.warn(
+          'EMAIL_ENABLED is true but SMTP_HOST is unset — emails will be logged, not sent.',
+        );
+      }
+      this.transporter = null;
+      return;
+    }
+
+    const { host, port, secure, user, pass } = this.config.smtp;
+    this.transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: user && pass ? { user, pass } : undefined,
+      pool: true,
+      maxConnections: 3,
+      // Internal Zamtel SMTP typically presents a self-signed cert.
+      tls: { rejectUnauthorized: false },
+    });
+
+    this.transporter
+      .verify()
+      .then(() =>
+        this.logger.log(`SMTP ready (${host}:${port}${secure ? ' SSL' : ''})`),
+      )
+      .catch((err) =>
+        this.logger.warn(`SMTP verify failed: ${(err as Error).message}`),
+      );
+  }
 
   isEnabled(): boolean {
     return this.config.enabled;
@@ -30,32 +68,20 @@ export class EmailService {
   async send(input: SendEmailInput): Promise<void> {
     if (!this.config.enabled) return;
 
-    try {
-      const res = await fetch(RESEND_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.config.resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: this.config.from,
-          to: [input.to],
-          subject: input.subject,
-          html: input.html,
-        }),
-        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
-      });
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        await this.recordFailure(
-          input.to,
-          `Resend API ${res.status}: ${body.slice(0, 300)}`,
-          res.status,
-        );
-        return;
+    if (!this.transporter) {
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.log(`[stub email] to=${input.to} subject=${input.subject}`);
       }
+      return;
+    }
 
+    try {
+      await this.transporter.sendMail({
+        from: this.config.from,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+      });
       if (process.env.NODE_ENV !== 'production') {
         this.logger.log(`Email sent to ${input.to}: ${input.subject}`);
       }
@@ -65,11 +91,11 @@ export class EmailService {
     }
   }
 
-  private async recordFailure(
-    to: string,
-    detail: string,
-    statusCode?: number,
-  ): Promise<void> {
+  onModuleDestroy(): void {
+    this.transporter?.close();
+  }
+
+  private async recordFailure(to: string, detail: string): Promise<void> {
     if (process.env.NODE_ENV !== 'production') {
       this.logger.warn(`Email to ${to} failed: ${detail}`);
     }
@@ -78,7 +104,6 @@ export class EmailService {
       code: 'EMAIL_SEND_FAILED',
       message: `Could not send notification email to ${to}: ${detail}`,
       path: '/email',
-      statusCode,
     });
   }
 }

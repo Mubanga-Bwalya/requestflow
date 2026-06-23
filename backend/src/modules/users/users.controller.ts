@@ -31,30 +31,45 @@ export class UsersController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    if (departmentName?.trim()) {
-      assertDepartmentTeamAccess(user, departmentName);
-      const pagination = parsePagination(page ?? '1', limit ?? '100');
-      return this.usersService.findByDepartment(
-        departmentName,
-        pagination.page,
-        pagination.limit,
+    const isAdmin = !!user.roleName && ADMIN_ROLE_NAMES.has(user.roleName);
+    const dept = departmentName?.trim();
+
+    // Admins can list every user, optionally filtered by department — this backs
+    // the admin user-management page (including its department filter), so it
+    // must not be gated behind department-manager access.
+    if (isAdmin) {
+      const paginate = wantsPagination(page, limit);
+      return this.usersService.findAll(
+        user.id,
+        dept || undefined,
+        paginate ? parseInt(page ?? '1', 10) : undefined,
+        paginate ? parseInt(limit ?? '20', 10) : undefined,
       );
     }
-    if (!user.roleName || !ADMIN_ROLE_NAMES.has(user.roleName)) {
-      throw new ForbiddenException('Admin access required');
+
+    // Non-admins may only fetch their own department's team (manager-gated),
+    // used by the assignment / team-member pickers.
+    if (dept) {
+      assertDepartmentTeamAccess(user, dept);
+      const pagination = parsePagination(page ?? '1', limit ?? '100');
+      return this.usersService.findByDepartment(
+        dept,
+        pagination.page,
+        pagination.limit,
+        user.id,
+      );
     }
-    const paginate = wantsPagination(page, limit);
-    return this.usersService.findAll(
-      undefined,
-      paginate ? parseInt(page ?? '1', 10) : undefined,
-      paginate ? parseInt(limit ?? '20', 10) : undefined,
-    );
+
+    throw new ForbiddenException('Admin access required');
   }
 
   @Get('by-email/:email')
   @UseGuards(AdminRoleGuard)
-  findByEmail(@Param('email') email: string) {
-    return this.usersService.findByEmail(decodeURIComponent(email));
+  findByEmail(
+    @Param('email') email: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.usersService.findByEmail(decodeURIComponent(email), user.id);
   }
 
   @Throttle({ writes: { limit: 60, ttl: 60_000 } })

@@ -132,8 +132,8 @@ Backup policy: [`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md)
 
 | Limitation | Impact |
 |------------|--------|
-| No corporate SSO | Users sign in with email and password managed in RequestFlow |
-| No HR system sync | Users and departments are created manually or via seed data |
+| No full OIDC/SAML SSO | Staff sign in with their GN (staff number) + AD password via Zamtel central staff auth; full SSO planned |
+| No HR system sync | Users auto-provisioned on first sign-in; departments created manually or via seed data |
 | No production Docker images for apps | Deploy with Node.js and PM2 or systemd |
 | JWT stored in browser storage | Acceptable for pilot; httpOnly cookies planned for wider rollout |
 | No frontend unit tests | UI changes need manual or Playwright smoke checks |
@@ -143,7 +143,7 @@ Backup policy: [`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md)
 ## Recommended next steps
 
 1. **Demonstration** — Run the quick verification path in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
-2. **Pilot planning** — Rotate all demo passwords; set production environment variables per [`DEPLOYMENT.md`](DEPLOYMENT.md).
+2. **Pilot planning** — Configure `ZAMTEL_AUTH_BASE_URL` for staff sign-in and set production environment variables per [`DEPLOYMENT.md`](DEPLOYMENT.md).
 3. **Infrastructure** — Provision internal server, PostgreSQL, optional Redis, and Nginx.
 4. **Sign-off** — Complete [`PRODUCTION_DEPLOYMENT_CHECKLIST.md`](PRODUCTION_DEPLOYMENT_CHECKLIST.md).
 5. **Integration roadmap** — Prioritise SSO and HR sync with IT using [`INTEGRATION_READINESS.md`](INTEGRATION_READINESS.md).

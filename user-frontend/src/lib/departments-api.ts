@@ -2,11 +2,18 @@ import { api } from "@/lib/api";
 import { type PaginatedResponse } from "@/lib/pagination";
 import { cachedApi } from "@/lib/query-cache";
 
+export type ApiDepartmentSection = {
+  id: string;
+  name: string;
+  isActive: boolean;
+};
+
 export type ApiDepartment = {
   id: string;
   name: string;
   description: string | null;
   isActive: boolean;
+  sections?: ApiDepartmentSection[];
 };
 
 export async function fetchActiveDepartments(): Promise<ApiDepartment[]> {

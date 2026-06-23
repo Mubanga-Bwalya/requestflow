@@ -68,6 +68,13 @@ function sessionToProfile(session: AppSession): UserProfile {
   };
 }
 
+/**
+ * Initial state must be identical on the server and the client's first render,
+ * so it must NOT read localStorage here (that runs only on the client and would
+ * cause a hydration mismatch — server renders logged-out, client logged-in).
+ * The stored session is hydrated after mount in AuthProvider's bootstrap effect;
+ * `authReady` gates the UI (RequireAuth shows a loading screen) until then.
+ */
 function buildInitialState(): State {
   return {
     auth: { isLoggedIn: false },

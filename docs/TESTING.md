@@ -37,7 +37,6 @@ CI (`.github/workflows/ci.yml`): backend unit + e2e, all three apps lint/typeche
 |------|--------|
 | `access-policy.service.spec.ts` | Permission matrix |
 | `request-workflow-guards.spec.ts` | Status guards vs assignment progress |
-| `password.service.spec.ts` | Bcrypt, password policy |
 | `jwt-secret.spec.ts` / `production-env.spec.ts` | Boot security |
 | `assignment.mapper.spec.ts` | Progress average; no auto-complete at 100% |
 | `request-number.service.spec.ts` | RF-YYYY-NNNN formatting |
@@ -116,7 +115,7 @@ Full manual test cases and demo accounts below.
 
 ### Admin smoke (6 steps)
 
-1. Login `admin@requestflow.local`
+1. Login `admin@requestflow.local` (Developer tab / dev-login)
 2. Users → add user
 3. Departments → set manager
 4. Templates → toggle field
@@ -125,14 +124,16 @@ Full manual test cases and demo accounts below.
 
 ### Demo accounts (manual / Playwright)
 
-| User | Email | Password | Role |
-|------|-------|----------|------|
-| Musa | `musa@requestflow.local` | `requestflow` | Marketing requester |
-| Ivan | `mbwalya4477@gmail.com` | `requestflow` | Innovations manager |
-| Iris | `iris@requestflow.local` | `requestflow` | Innovations assignee |
-| Henry | `henry@requestflow.local` | `requestflow` | HR Manager |
-| Helen | `helen@requestflow.local` | `requestflow` | HR team member |
-| Admin | `admin@requestflow.local` | `requestflow` | Admin portal |
+Demo users have **no password**. Sign in via the email-only **Developer** tab (`POST /auth/dev-login`), enabled with `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true` (or `NEXT_PUBLIC_SHOW_DEMO_HINTS=true`) and hard-disabled when `NODE_ENV=production`. Real staff sign in with their GN + AD password via Zamtel.
+
+| User | Email (dev-login) | Role |
+|------|-------------------|------|
+| Musa | `musa@requestflow.local` | Marketing requester |
+| Ivan | `mbwalya4477@gmail.com` | Innovations manager |
+| Iris | `iris@requestflow.local` | Innovations assignee |
+| Henry | `henry@requestflow.local` | HR Manager |
+| Helen | `helen@requestflow.local` | HR team member |
+| Admin | `admin@requestflow.local` | Admin portal |
 
 Jane (`jane@requestflow.local`) is **not** in the current database. Backend e2e tests use **Musa** as the employee requester.
 

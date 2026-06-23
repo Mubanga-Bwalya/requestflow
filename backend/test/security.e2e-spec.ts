@@ -41,7 +41,7 @@ describe('Security regression (e2e)', () => {
       } catch {
         dbReady = false;
         console.warn(
-          'Skipping security e2e: login failed. Run 002_seed_core_data.sql and npm run hash-passwords if needed.',
+          'Skipping security e2e: dev-login failed. Apply migrations and run npm run db:seed if needed.',
         );
       }
     }

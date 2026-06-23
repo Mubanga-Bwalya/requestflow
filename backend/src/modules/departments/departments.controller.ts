@@ -31,6 +31,7 @@ export class DepartmentsController {
     @Query('activeOnly') activeOnly?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('parentDepartmentId') parentDepartmentId?: string,
   ) {
     const onlyActive = activeOnly !== 'false';
     const paginate = wantsPagination(page, limit);
@@ -38,6 +39,7 @@ export class DepartmentsController {
       onlyActive,
       paginate ? parseInt(page ?? '1', 10) : undefined,
       paginate ? parseInt(limit ?? '20', 10) : undefined,
+      parentDepartmentId?.trim() || undefined,
     );
   }
 

@@ -11,7 +11,9 @@ import { AdminRoleGuard } from '../../common/guards/admin-role.guard';
 import { ConditionalThrottlerGuard } from '../../common/guards/conditional-throttler.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtStrategy } from './jwt.strategy';
-import { PasswordService } from './password.service';
+import { ZamtelStaffAuthService } from './zamtel-auth.service';
+import { DevAuthService } from './dev-auth.service';
+import { StaffTokenStore } from './staff-token.store';
 
 @Module({
   imports: [
@@ -33,12 +35,14 @@ import { PasswordService } from './password.service';
   controllers: [AuthController],
   providers: [
     AuthService,
-    PasswordService,
+    ZamtelStaffAuthService,
+    DevAuthService,
+    StaffTokenStore,
     JwtStrategy,
     AdminRoleGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: ConditionalThrottlerGuard },
   ],
-  exports: [AuthService, PasswordService, JwtModule, AdminRoleGuard],
+  exports: [AuthService, JwtModule, AdminRoleGuard, StaffTokenStore],
 })
 export class AuthModule {}

@@ -9,12 +9,12 @@
 
 - [ ] No secrets in git (only `*.env.example` tracked)
 - [ ] `JWT_SECRET` — 32+ random characters in secret store
-- [ ] `ALLOW_DEMO_DEFAULT_PASSWORD` unset or `false`
-- [ ] `ALLOW_LEGACY_PLAINTEXT_PASSWORDS` unset or `false`
+- [ ] `ZAMTEL_AUTH_BASE_URL` set to the live staff-auth service and reachable from the API host
+- [ ] `NODE_ENV=production` (hard-disables `POST /auth/dev-login`)
 - [ ] `CORS_ORIGINS` — exact user + admin portal URLs (no `*`)
 - [ ] `NEXT_PUBLIC_API_URL` set before **both** frontend production builds
 - [ ] `NEXT_PUBLIC_SHOW_DEMO_HINTS` unset or `false` (build fails if `true`)
-- [ ] Demo accounts deactivated or passwords rotated (no `requestflow` in prod)
+- [ ] `NEXT_PUBLIC_ENABLE_DEV_LOGIN` unset or `false` (Developer sign-in tab hidden)
 
 ---
 
@@ -23,10 +23,10 @@
 - [ ] PostgreSQL 16+ provisioned
 - [ ] **Backup taken** before migration — [`BACKUP_AND_RECOVERY.md`](BACKUP_AND_RECOVERY.md)
 - [ ] `bash backend/database/apply-migrations.sh` (or `apply-migrations.ps1`) on empty DB
-- [ ] **Migration tracking:** operator log lists each applied SQL file + date (001→015→002 order)
-- [ ] Order includes `013`, `014`, `015` then `002` seed data
+- [ ] **Migration tracking:** operator log lists each applied SQL file + date (001→016→002 order)
+- [ ] Order includes `013`, `014`, `015`, `016` then `002` seed data
 - [ ] **Do not** run `003`, `005`, `011`, or `database/deprecated/*`
-- [ ] Production users: admin-created via portal **or** one-time `db:seed` + immediate password rotation
+- [ ] Production users: auto-provisioned on first Zamtel sign-in (default role **Employee**); promote admins manually
 - [ ] Department managers set manually per department in admin UI
 
 ---
@@ -39,7 +39,7 @@
 - [ ] `cd admin-frontend && npm ci && npm run build && npm run start:prod` (port **3001**)
 - [ ] **Restart** user/admin processes after any frontend rebuild (PM2/systemd/NSSM)
 - [ ] Redis optional: `REDIS_ENABLED=true` if using cache layer
-- [ ] Email optional: `EMAIL_ENABLED=true`, `RESEND_API_KEY` from secret store
+- [ ] Email optional: `EMAIL_ENABLED=true`, `SMTP_HOST` set, `SMTP_USER`/`SMTP_PASS` from secret store
 
 ---
 
@@ -47,7 +47,8 @@
 
 - [ ] `GET /health` returns OK
 - [ ] `npm run audit:deployment-smoke` passes (API + `start:prod` on :3000/:3001)
-- [ ] Admin login (`adminOnly`) — non-admin users blocked on admin portal
+- [ ] Staff login (GN + AD password) succeeds via Zamtel; admin login (`adminOnly`) blocks non-admin users
+- [ ] `POST /auth/dev-login` rejected in production (dev-login disabled)
 - [ ] User login and dashboard load (no silent zero stats on API failure)
 - [ ] Create request → manager inbox (appointed manager only) → assign → milestone progress
 - [ ] 100% milestone progress does **not** auto-complete request

@@ -40,6 +40,7 @@ export default function Page() {
             caption="Departments"
             columns={[
               { key: "name", label: "Department" },
+              { key: "sections", label: "Sub-sections" },
               { key: "templates", label: "Request types" },
               { key: "manager", label: "Manager" },
               { key: "teamMembers", label: "Team Members" },
@@ -49,6 +50,7 @@ export default function Page() {
             ]}
             rows={d.result.items.map((row): DataTableRow => ({
               name: row.name,
+              sections: row.sections?.length ?? 0,
               templates: row.templateCount,
               manager: row.manager?.fullName ?? "—",
               teamMembers: row.userCount,
@@ -89,6 +91,7 @@ export default function Page() {
         error={d.error}
         saving={d.saving}
         onSave={() => void d.save()}
+        onSectionsChanged={d.refreshDepartments}
       />
     </>
   );

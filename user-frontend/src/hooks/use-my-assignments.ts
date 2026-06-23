@@ -8,6 +8,7 @@ import {
   type AppRefreshScope,
 } from "@/lib/app-refresh";
 import { apiErrorMessage } from "@/lib/api-error";
+import { withRetry } from "@/lib/retry";
 import { fetchMyAssignments } from "@/lib/assignments-api";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { peekApiCache, cacheScopeUserId, setApiCache } from "@/lib/query-cache";
@@ -53,14 +54,20 @@ export function useMyAssignments(
 
       setError(null);
       try {
-        const data = await fetchMyAssignments(
-          {
-            page,
-            limit: LIST_PAGE_SIZE,
-            tab,
-            q: debouncedQ || undefined,
-          },
-          signal,
+        // Note: the abort signal is intentionally NOT passed into the network
+        // request. fetchMyAssignments is cache-deduped, so several consumers can
+        // share one in-flight request; cancelling it from one unmount would
+        // reject it for the others (surfacing a false "could not load"). The
+        // signal only guards setState below and stops retries after unmount.
+        const data = await withRetry(
+          () =>
+            fetchMyAssignments({
+              page,
+              limit: LIST_PAGE_SIZE,
+              tab,
+              q: debouncedQ || undefined,
+            }),
+          { signal },
         );
         if (!signal?.aborted) {
           setResult(data);

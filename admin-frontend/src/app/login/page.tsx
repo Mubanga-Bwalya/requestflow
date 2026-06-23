@@ -12,7 +12,8 @@ import {
 
 export default function Page() {
   const login = useLoginPage({
-    defaultEmail: showDemoHints ? adminLoginDemoEmail : "",
+    defaultMode: showDemoHints ? "dev" : "staff",
+    defaultDevEmail: showDemoHints ? adminLoginDemoEmail : "",
   });
 
   if (login.showLoading) {
@@ -23,12 +24,17 @@ export default function Page() {
     <LoginShell>
       <LoginForm
         demoHint={showDemoHints ? adminLoginDemoHint : null}
+        mode={login.mode}
+        devLoginEnabled={login.devLoginEnabled}
+        onModeChange={login.setMode}
+        gn={login.gn}
         email={login.email}
         password={login.password}
         error={login.error}
         fieldErrors={login.fieldErrors}
         loading={login.loading}
         canSubmit={login.canSubmit}
+        onGnChange={login.setGn}
         onEmailChange={login.setEmail}
         onPasswordChange={login.setPassword}
         onSubmit={() => void login.onLogin()}

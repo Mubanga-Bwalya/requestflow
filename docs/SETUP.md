@@ -60,10 +60,10 @@ bash backend/database/apply-migrations.sh
 
 cd backend
 npm run prisma:generate
-npm run db:seed -- --reset-passwords
+npm run db:seed
 ```
 
-This applies all schema SQL (including templates in `002`) and seeds demo users. Re-running `db:seed` without `--reset-passwords` preserves existing passwords.
+This applies all schema SQL (including templates in `002` and the `users.gn` column in `016`) and seeds demo users. Demo users have **no password** — they sign in via email-only dev-login (see below).
 
 **Do not run** `005_auth_passwords.sql` (disabled; wrote plaintext passwords historically).
 
@@ -81,10 +81,13 @@ Minimum for local dev:
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/requestflow
 JWT_SECRET=dev-only-change-me-to-32-chars-minimum!!
 JWT_EXPIRES_IN=28800
+ZAMTEL_AUTH_BASE_URL=http://10.3.104.141:7071
 REDIS_ENABLED=false
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 EMAIL_ENABLED=false
 ```
+
+`ZAMTEL_AUTH_BASE_URL` points at Zamtel central staff auth. Staff sign in with their **GN + AD password**, which the API forwards there. For local/offline work without reaching that service, use the email-only **Developer** sign-in tab (dev-login) — see [Demo accounts](#demo-accounts).
 
 See [`SECURITY.md`](SECURITY.md) for all variables.
 
@@ -108,15 +111,16 @@ cp .env.example .env.local
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_ENABLE_DEV_LOGIN=true
 NEXT_PUBLIC_SHOW_DEMO_HINTS=true
 ```
 
-**Demo login hints** are baked in at dev-server start. If hints do not appear on `/login`, confirm `.env.local` exists with `NEXT_PUBLIC_SHOW_DEMO_HINTS=true` and **restart** `npm run dev`. Hints never appear in production builds (the build fails if the flag is `true`).
+The email-only **Developer** sign-in tab appears when `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true` **or** `NEXT_PUBLIC_SHOW_DEMO_HINTS=true`. These flags are baked in at dev-server start. If the tab/hints do not appear on `/login`, confirm `.env.local` exists with the flag set and **restart** `npm run dev`. Demo hints never appear in production builds (the build fails if `NEXT_PUBLIC_SHOW_DEMO_HINTS` is `true`), and dev-login is hard-disabled server-side when `NODE_ENV=production`.
 
-| Portal | Hint content (when enabled) |
-|--------|----------------------------|
-| User (:3000) | Musa, Ivan (`mbwalya4477@gmail.com`), Iris — password `requestflow` |
-| Admin (:3001) | `admin@requestflow.local` — password `requestflow` |
+| Portal | Developer sign-in (email only, no password) |
+|--------|---------------------------------------------|
+| User (:3000) | Musa, Ivan (`mbwalya4477@gmail.com`), Iris |
+| Admin (:3001) | `admin@requestflow.local` |
 
 ```bash
 npm run dev:user    # :3000
@@ -145,7 +149,7 @@ Restart the API. If Redis stops, the API **continues serving from PostgreSQL** (
 
 ## Demo accounts
 
-**Development only.** Password: `requestflow` (bcrypt in seed) unless noted.
+**Development only.** Demo users have **no password** — sign in via the email-only **Developer** tab (`POST /auth/dev-login`, hard-disabled when `NODE_ENV=production`). Real staff use **GN + AD password** via Zamtel central staff auth.
 
 > **Live database note:** Jane (`jane@requestflow.local`) was removed from the current demo DB. Ivan (Innovations manager) uses `mbwalya4477@gmail.com` for email-server testing — not `ivan@requestflow.local`. Seed/SQL files are updated to match; your DB may differ until you re-apply seeds.
 
@@ -182,8 +186,9 @@ Set `NEXT_PUBLIC_SHOW_DEMO_HINTS=false` (or unset) before `npm run build` — pr
 
 | Problem | Fix |
 |---------|-----|
-| Admin login: "Admin access required" | Use `admin@requestflow.local`; DB role must be **Admin** |
-| Invalid email or password | `npm run db:seed --workspace=backend -- --reset-passwords`; or `npm run hash-passwords` only for legacy plaintext DBs; clear browser `localStorage` |
+| Admin login: "Admin access required" | Use `admin@requestflow.local` via the Developer tab; DB role must be **Admin** |
+| Dev-login tab missing on `/login` | Set `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true` (or `NEXT_PUBLIC_SHOW_DEMO_HINTS=true`) in `.env.local` and restart `npm run dev` |
+| Staff GN login fails / 503 | Confirm `ZAMTEL_AUTH_BASE_URL` is set and the Zamtel auth service is reachable; use dev-login for offline work |
 | 401 on all API calls | Log in again; check `JWT_SECRET` in `backend/.env` |
 | CORS / network errors | `NEXT_PUBLIC_API_URL=http://localhost:4000` in both `.env.local` files |
 | `dist/main` missing | `npm run build --workspace=backend` |

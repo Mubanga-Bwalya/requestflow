@@ -140,6 +140,18 @@ export function useAdminDepartments() {
       .catch(() => setDeptUsers([]));
   }, [dialogMode, editing]);
 
+  // Re-fetch after a section change and keep the open dialog's `editing` in sync
+  // so its sub-section list reflects the change immediately.
+  const refreshDepartments = useCallback(async () => {
+    const [paged, all] = await Promise.all([
+      fetchDepartmentsPage({ page, limit: LIST_PAGE_SIZE, activeOnly: false }),
+      fetchDepartments(false),
+    ]);
+    setResult(paged);
+    setAllDepartments(all);
+    setEditing((prev) => (prev ? all.find((dep) => dep.id === prev.id) ?? prev : prev));
+  }, [page]);
+
   function openAdd() {
     setDialogMode("add");
     setEditing(null);
@@ -215,6 +227,7 @@ export function useAdminDepartments() {
     error,
     loadError,
     reload,
+    refreshDepartments,
     openAdd,
     openEdit,
     closeDialog,

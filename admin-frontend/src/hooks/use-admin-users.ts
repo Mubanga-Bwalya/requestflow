@@ -36,8 +36,33 @@ export function useAdminUsers() {
 
   const defaultDept = departments[0]?.name ?? "";
 
-  const fieldErrors = useMemo(() => validateUserForm(form, Boolean(editing)), [form, editing]);
+  const fieldErrors = useMemo(() => validateUserForm(form), [form]);
   const canSave = Object.keys(fieldErrors).length === 0;
+
+  /**
+   * A user's stored department is their leaf (a section, or a top-level dept).
+   * Resolve it back into { department (top-level name), sectionId } for the form.
+   */
+  const resolveDeptSection = useCallback(
+    (leafName: string | null): { department: string; sectionId: string } => {
+      if (!leafName) return { department: defaultDept, sectionId: "" };
+      const topLevel = departments.find((d) => d.name === leafName);
+      if (topLevel) return { department: topLevel.name, sectionId: "" };
+      for (const d of departments) {
+        const section = d.sections?.find((s) => s.name === leafName);
+        if (section) return { department: d.name, sectionId: section.id };
+      }
+      return { department: leafName, sectionId: "" };
+    },
+    [departments, defaultDept],
+  );
+
+  /** The leaf department name to persist (the section's name when one is chosen). */
+  const leafDepartmentName = useCallback((): string => {
+    const dept = departments.find((d) => d.name === form.department);
+    const section = dept?.sections?.find((s) => s.id === form.sectionId);
+    return section ? section.name : form.department;
+  }, [departments, form.department, form.sectionId]);
 
   const loadMeta = useCallback(async () => {
     const cachedDepts = peekApiCache<ApiDepartment[]>("departments:active");
@@ -141,15 +166,17 @@ export function useAdminUsers() {
   function openEdit(u: ApiUser) {
     setEditing(u);
     setShowAdvanced(Boolean(u.externalEmployeeId || u.jobTitle));
+    const { department, sectionId } = resolveDeptSection(u.departmentName);
     setForm({
       name: u.fullName,
       email: u.email,
       jobTitle: u.jobTitle ?? "",
       externalEmployeeId: u.externalEmployeeId ?? "",
-      department: u.departmentName ?? defaultDept,
+      department,
+      sectionId,
       role: normalizeAssignableRole(u.roleName),
       status: u.isActive ? "Active" : "Inactive",
-      password: "",
+      gn: u.gn ?? "",
     });
     setError(null);
     setOpen(true);
@@ -157,31 +184,29 @@ export function useAdminUsers() {
 
   async function save() {
     setError(null);
-    const errors = validateUserForm(form, Boolean(editing));
+    const errors = validateUserForm(form);
     if (Object.keys(errors).length) return;
 
     setSaving(true);
     try {
-      const payload = {
-        fullName: form.name.trim(),
-        email: normalizeEmail(form.email),
-        departmentName: form.department,
-        roleName: form.role,
-        jobTitle: form.jobTitle.trim() || undefined,
-        externalEmployeeId: form.externalEmployeeId.trim() || undefined,
-        isActive: form.status === "Active",
-      };
-
       if (editing) {
+        // Profile fields are owned by the Zamtel directory; admins may only
+        // change the local overlay — department/section and role. The leaf
+        // (the section when one is chosen) is what's persisted.
         await updateUser(editing.id, {
-          ...payload,
-          externalEmployeeId: form.externalEmployeeId.trim() || null,
-          jobTitle: form.jobTitle.trim() || undefined,
+          departmentName: leafDepartmentName(),
+          roleName: form.role,
         });
       } else {
         await createUser({
-          ...payload,
-          password: form.password.trim() || undefined,
+          fullName: form.name.trim(),
+          email: normalizeEmail(form.email),
+          departmentName: leafDepartmentName(),
+          roleName: form.role,
+          jobTitle: form.jobTitle.trim() || undefined,
+          externalEmployeeId: form.externalEmployeeId.trim() || undefined,
+          isActive: form.status === "Active",
+          gn: form.gn.trim() || undefined,
         });
       }
       await reload();

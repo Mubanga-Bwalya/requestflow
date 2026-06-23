@@ -60,7 +60,7 @@ Both frontends are **thin clients**. All business rules, authorization, and stat
 | Access control | `backend/src/common/access-policy.service.ts` | Request/assignment view and mutation rules — **do not duplicate in frontends** |
 | Department manager | `backend/src/common/department-manager.ts` | `isDepartmentManager()` — `departments.manager_user_id` only — **single source of truth** |
 | Workflow rules | `backend/src/common/request-status-transitions.ts`, `assignment-status-transitions.ts`, `request-workflow-guards.ts` | Status changes and missing-info gates |
-| Auth | `backend/src/modules/auth/` | Login, JWT issue, password hashing |
+| Auth | `backend/src/modules/auth/` | Zamtel staff auth service (forwards GN + AD password to `${ZAMTEL_AUTH_BASE_URL}/api/auth/login`), dev auth service (email-only dev-login, disabled in prod), JWT issue, auto-provisioning |
 | JWT validation | `backend/src/modules/auth/jwt.strategy.ts` | **Reload role, department, and managed departments from DB** each request |
 | Workflow guards | `backend/src/common/request-workflow-guards.ts` | Status alignment with assignment progress |
 | Status transitions | `backend/src/common/request-status-transitions.ts`, `assignment-status-transitions.ts` | Allowed state changes |
@@ -120,13 +120,16 @@ Both frontends are **thin clients**. All business rules, authorization, and stat
 
 ## Authentication flow
 
-1. Client `POST /auth/login` with email + password.
-2. `AuthService` verifies bcrypt hash; inactive users rejected.
-3. JWT signed with `sub` (user id), `email`, and **informational** role claims.
-4. On each request, `JwtStrategy.validate()` **reloads** `roleName`, `departmentId`, and `inboxDepartmentName` from PostgreSQL (optional 45s Redis cache).
-5. `@CurrentUser()` decorator supplies `RequestUser` to controllers.
+1. Client `POST /auth/login` with `{ gn, password }`.
+2. The Zamtel staff auth service forwards the GN + AD password to `${ZAMTEL_AUTH_BASE_URL}/api/auth/login`. On 401 the API returns 401; if Zamtel is unreachable it returns 503.
+3. On success the user is **auto-provisioned**: matched by `gn` → then `email` → else created with default role **Employee** and a department resolved by name (created if missing; fallback "Shared Services"). Inactive users are rejected. Admin promotion is **manual** (admin portal).
+4. The API mints its **own** JWT, signed with `sub` (user id), `email`, and **informational** role claims.
+5. On each request, `JwtStrategy.validate()` **reloads** `roleName`, `departmentId`, and `inboxDepartmentName` from PostgreSQL (optional 45s Redis cache).
+6. `@CurrentUser()` decorator supplies `RequestUser` to controllers.
 
-Admin portal: `POST /auth/login?adminOnly=true` — requires DB role `Admin` or `System Admin`.
+**Dev-login:** `POST /auth/dev-login` with `{ email }` (no password) issues a JWT for offline/demo use via the dev auth service — **hard-disabled when `NODE_ENV=production`**.
+
+Admin portal: `POST /auth/login?adminOnly=true` — requires DB role `Admin` or `System Admin` (403 otherwise). RequestFlow no longer stores or verifies local passwords.
 
 ---
 
@@ -163,7 +166,7 @@ See [`REQUEST_WORKFLOW.md`](REQUEST_WORKFLOW.md).
 
 ## Notification flow
 
-`NotificationsService` creates rows in `notifications` table on workflow events (assignment, status changes, missing info). Optional email via Resend when `EMAIL_ENABLED=true` (`backend/src/common/email/`).
+`NotificationsService` creates rows in `notifications` table on workflow events (assignment, status changes, missing info). Optional email via Zamtel internal SMTP (nodemailer) when `EMAIL_ENABLED=true` and `SMTP_HOST` is set (`backend/src/common/email/`).
 
 Notifications are written **outside** database transactions (committed work may exist without a notification if email/insert fails).
 
@@ -200,7 +203,8 @@ When `REDIS_ENABLED=false` or Redis is unreachable, all reads go to PostgreSQL. 
 
 | Item | Status |
 |------|--------|
-| Company SSO / httpOnly cookies | Planned — see [`SECURITY.md`](SECURITY.md) |
+| Zamtel central staff auth (GN + AD) | **Implemented** — see Authentication flow above |
+| Full OIDC/SAML SSO / httpOnly cookies | Planned — see [`SECURITY.md`](SECURITY.md) |
 | OpenAPI / Swagger | **Not implemented** |
 | Admin `/logs` page | **Implemented** — system events + activity audit tabs |
 | Shared frontend package | Not implemented — duplication documented in [`CODE_ORGANIZATION.md`](CODE_ORGANIZATION.md); drift fixes applied per portal |

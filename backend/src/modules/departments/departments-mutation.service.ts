@@ -57,6 +57,35 @@ export class DepartmentsMutationService {
     }
   }
 
+  /**
+   * Validate a candidate parent for a (sub-)section. Enforces the two-level rule:
+   * the parent must exist, be top-level (not itself a section), and not be the
+   * department being edited. Returns the validated parent id.
+   */
+  private async assertValidParent(
+    parentDepartmentId: string,
+    selfId?: string,
+  ): Promise<string> {
+    if (selfId && parentDepartmentId === selfId) {
+      throw new BadRequestException('A department cannot be its own parent.');
+    }
+    const parent = await this.prisma.department.findUnique({
+      where: { id: parentDepartmentId },
+      select: { id: true, parentDepartmentId: true },
+    });
+    if (!parent) {
+      throw new BadRequestException(
+        `Parent department not found: ${parentDepartmentId}`,
+      );
+    }
+    if (parent.parentDepartmentId) {
+      throw new BadRequestException(
+        'Sections can only be nested one level deep — the parent must be a top-level department.',
+      );
+    }
+    return parent.id;
+  }
+
   async create(dto: CreateDepartmentDto) {
     const name = dto.name?.trim();
     if (!name) throw new BadRequestException('Department name is required.');
@@ -71,6 +100,18 @@ export class DepartmentsMutationService {
     });
     if (existing)
       throw new BadRequestException(`Department already exists: ${name}`);
+
+    const parentDepartmentId = dto.parentDepartmentId
+      ? await this.assertValidParent(dto.parentDepartmentId)
+      : null;
+
+    if (dto.managerUserId) {
+      const manager = await this.prisma.user.findUnique({
+        where: { id: dto.managerUserId },
+      });
+      if (!manager)
+        throw new BadRequestException(`User not found: ${dto.managerUserId}`);
+    }
 
     if (dto.cloneTemplatesFromDepartmentId) {
       const source = await this.prisma.department.findUnique({
@@ -89,6 +130,8 @@ export class DepartmentsMutationService {
           description: dto.description?.trim() || null,
           externalDepartmentCode: dto.externalDepartmentCode?.trim() || null,
           isActive: dto.isActive ?? true,
+          parentDepartmentId,
+          managerUserId: dto.managerUserId ?? null,
         },
       });
 
@@ -137,6 +180,27 @@ export class DepartmentsMutationService {
         throw new BadRequestException(`User not found: ${dto.managerUserId}`);
     }
 
+    let parentDepartmentId: string | null | undefined;
+    if (dto.parentDepartmentId !== undefined) {
+      if (dto.parentDepartmentId === null) {
+        parentDepartmentId = null; // promote to top-level
+      } else {
+        // A department with its own sections cannot become a section itself.
+        const childCount = await this.prisma.department.count({
+          where: { parentDepartmentId: id },
+        });
+        if (childCount > 0) {
+          throw new BadRequestException(
+            'This department has sub-sections, so it cannot become a section itself. Move its sections first.',
+          );
+        }
+        parentDepartmentId = await this.assertValidParent(
+          dto.parentDepartmentId,
+          id,
+        );
+      }
+    }
+
     if (dto.isActive === false) {
       const activeCount = await this.query.activeRequestCount(id);
       if (activeCount > 0) {
@@ -163,6 +227,7 @@ export class DepartmentsMutationService {
         ...(dto.managerUserId !== undefined
           ? { managerUserId: dto.managerUserId }
           : {}),
+        ...(parentDepartmentId !== undefined ? { parentDepartmentId } : {}),
       },
     });
 

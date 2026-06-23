@@ -17,6 +17,9 @@ type Props = {
   department: Department | null;
   departments: { id: string; name: string; description: string | null }[];
   loadingDepartments: boolean;
+  section: string | null;
+  sections: { id: string; name: string }[];
+  onSectionChange: (name: string) => void;
   templates: { id: string; name: string; department: Department }[];
   loadingTemplates: boolean;
   requestTypeId: string;
@@ -49,6 +52,9 @@ export function CreateRequestSteps(props: Props) {
     department,
     departments,
     loadingDepartments,
+    section,
+    sections,
+    onSectionChange,
     templates,
     loadingTemplates,
     requestTypeId,
@@ -103,11 +109,32 @@ export function CreateRequestSteps(props: Props) {
           )}
         </div>
 
+        {department && sections.length ? (
+          <div className="rounded-card border border-zamtel-border bg-white p-5">
+            <label className={fieldLabelClassName}>Section</label>
+            <p className="mt-1 text-sm text-zamtel-muted">
+              Choose the section handling your request, or keep it department-wide.
+            </p>
+            <div className="mt-3">
+              <Select value={section ?? ""} onChange={(e) => onSectionChange(e.target.value)}>
+                <option value="">{department} (department-wide)</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        ) : null}
+
         {department ? (
           <div className="rounded-card border border-zamtel-border bg-white p-5">
             <label className={fieldLabelClassName}>Request type *</label>
             <p className="mt-1 text-sm text-zamtel-muted">
-              {loadingTemplates ? "Loading types from database…" : `${templates.length} type(s) available for ${department}.`}
+              {loadingTemplates
+                ? "Loading types from database…"
+                : `${templates.length} type(s) available for ${section ?? department}.`}
             </p>
             <div className="mt-3" data-rf-testid="request-type-select">
               <Select

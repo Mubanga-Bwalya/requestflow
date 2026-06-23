@@ -20,6 +20,8 @@ Related: [`SECURITY.md`](SECURITY.md) · [`REQUEST_WORKFLOW.md`](REQUEST_WORKFLO
 
 **Team member** is a functional label (assignee), not a separate permission tier beyond `Employee`.
 
+**Provisioning:** Staff are auto-provisioned on first sign-in through Zamtel central staff auth (GN + AD password) and receive the default role **`Employee`**. Admin or System Admin access is granted **manually** — set the role in the admin portal. See [`SECURITY.md`](SECURITY.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ---
 
 ## How the backend identifies a department manager

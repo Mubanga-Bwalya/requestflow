@@ -1,16 +1,19 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { EMAILS, PASSWORD } from './seed-constants';
+import { EMAILS } from './seed-constants';
 
+/**
+ * E2E sign-in via the email-only dev-login (no Zamtel dependency). Requires
+ * NODE_ENV !== 'production', which holds under the jest e2e config.
+ */
 export async function loginAs(
   app: INestApplication<App>,
   email: string,
   options?: { adminOnly?: boolean },
 ): Promise<string> {
-  const req = request(app.getHttpServer()).post('/auth/login').send({
+  const req = request(app.getHttpServer()).post('/auth/dev-login').send({
     email,
-    password: PASSWORD,
   });
   if (options?.adminOnly) {
     req.query({ adminOnly: 'true' });

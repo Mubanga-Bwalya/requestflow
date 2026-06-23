@@ -9,6 +9,7 @@ export type ApiUser = {
   email: string;
   jobTitle: string | null;
   externalEmployeeId: string | null;
+  gn: string | null;
   isActive: boolean;
   departmentId: string | null;
   departmentName: string | null;
@@ -51,7 +52,7 @@ export async function createUser(payload: {
   roleName: string;
   jobTitle?: string;
   externalEmployeeId?: string;
-  password?: string;
+  gn?: string;
   isActive?: boolean;
 }): Promise<ApiUser> {
   const { data } = await api.post<ApiUser>("/users", payload);
@@ -70,7 +71,7 @@ export async function updateUser(
     roleName: string;
     jobTitle: string | null;
     externalEmployeeId: string | null;
-    password?: string;
+    gn: string | null;
     isActive: boolean;
   }>,
 ): Promise<ApiUser> {

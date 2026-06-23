@@ -2,7 +2,6 @@ import {
   isValidEmail,
   normalizeEmail,
   USER_NAME_MAX,
-  validateUserPassword,
 } from "@/lib/admin-form-utils";
 
 export type UserFormState = {
@@ -11,9 +10,11 @@ export type UserFormState = {
   jobTitle: string;
   externalEmployeeId: string;
   department: string;
+  /** Selected sub-section id under `department`, or "" for department-level. */
+  sectionId: string;
   role: string;
   status: "Active" | "Inactive";
-  password: string;
+  gn: string;
 };
 
 export function emptyUserForm(defaultDept: string): UserFormState {
@@ -23,13 +24,14 @@ export function emptyUserForm(defaultDept: string): UserFormState {
     jobTitle: "",
     externalEmployeeId: "",
     department: defaultDept,
+    sectionId: "",
     role: "",
     status: "Active",
-    password: "",
+    gn: "",
   };
 }
 
-export function validateUserForm(form: UserFormState, editing: boolean) {
+export function validateUserForm(form: UserFormState) {
   const errors: Partial<Record<keyof UserFormState, string>> = {};
   const name = form.name.trim();
   const email = normalizeEmail(form.email);
@@ -44,11 +46,6 @@ export function validateUserForm(form: UserFormState, editing: boolean) {
 
   if (!form.department) errors.department = "Select a department.";
   if (!form.role) errors.role = "Select a role.";
-
-  if (!editing) {
-    const passwordError = validateUserPassword(form.password);
-    if (passwordError) errors.password = passwordError;
-  }
 
   return errors;
 }

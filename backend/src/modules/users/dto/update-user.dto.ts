@@ -49,9 +49,9 @@ export class UpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
+  /** Zamtel staff number; normally set automatically on first Zamtel sign-in. */
   @IsOptional()
   @IsString()
-  @MinLength(12)
-  @MaxLength(128)
-  password?: string;
+  @MaxLength(64)
+  gn?: string | null;
 }

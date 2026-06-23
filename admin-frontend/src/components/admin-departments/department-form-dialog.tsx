@@ -8,6 +8,7 @@ import { fieldLabelClassName } from "@/components/ui/field-control";
 import { DEPT_EXTERNAL_CODE_MAX, DEPT_NAME_MAX } from "@/lib/admin-form-utils";
 import type { ApiDepartment } from "@/lib/departments-api";
 import type { DeptFormState } from "@/hooks/use-admin-departments";
+import { SectionsPanel } from "@/components/admin-departments/sections-panel";
 
 type Props = {
   mode: "add" | "edit" | null;
@@ -25,6 +26,7 @@ type Props = {
   saving: boolean;
   canSave: boolean;
   onSave: () => void;
+  onSectionsChanged: () => Promise<void> | void;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -48,8 +50,10 @@ export function DepartmentFormDialog({
   saving,
   canSave,
   onSave,
+  onSectionsChanged,
 }: Props) {
   const advancedLabel = mode === "add" ? "Advanced setup options" : "Advanced options";
+  const showSections = mode === "edit" && editing !== null && editing.parentDepartmentId === null;
 
   return (
     <Dialog
@@ -161,6 +165,14 @@ export function DepartmentFormDialog({
             ) : null}
           </div>
         </details>
+
+        {showSections && editing ? (
+          <SectionsPanel
+            department={editing}
+            parentManagers={deptUsers}
+            onChanged={onSectionsChanged}
+          />
+        ) : null}
       </div>
       <div className="rf-dialog-footer">
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

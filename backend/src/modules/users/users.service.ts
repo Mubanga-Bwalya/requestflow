@@ -12,16 +12,26 @@ export class UsersService {
     private readonly mutation: UsersMutationService,
   ) {}
 
-  findAll(departmentName?: string, page?: number, limit?: number) {
-    return this.query.findAll(departmentName, page, limit);
+  findAll(
+    actorId?: string,
+    departmentName?: string,
+    page?: number,
+    limit?: number,
+  ) {
+    return this.query.findAll(actorId, departmentName, page, limit);
   }
 
-  findByEmail(email: string) {
-    return this.query.findByEmail(email);
+  findByEmail(email: string, actorId?: string) {
+    return this.query.findByEmail(email, actorId);
   }
 
-  findByDepartment(departmentName: string, page?: number, limit?: number) {
-    return this.query.findByDepartment(departmentName, page, limit);
+  findByDepartment(
+    departmentName: string,
+    page?: number,
+    limit?: number,
+    actorId?: string,
+  ) {
+    return this.query.findByDepartment(departmentName, page, limit, actorId);
   }
 
   create(dto: CreateUserDto, actorId?: string) {

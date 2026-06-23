@@ -55,7 +55,7 @@ RequestFlow was cleaned of temporary audit artifacts and generated output files.
 | Workspace | Assessment |
 |-----------|------------|
 | Root | `playwright` used by audit scripts (`audit:deployment-smoke`, etc.) |
-| Backend | NestJS, Prisma, bcrypt, ioredis, helmet, throttler — all used |
+| Backend | NestJS, Prisma, ioredis, helmet, throttler — all used (local password hashing/bcrypt removed with the move to Zamtel central staff auth) |
 | User/admin frontends | Minimal Next.js stack (axios, clsx, lucide-react, tailwind-merge) — all used |
 
 No duplicate or misplaced production dependencies were found.
@@ -158,7 +158,7 @@ npm run audit:deployment-smoke
 
 1. **Review** [`SUPERVISOR_README.md`](SUPERVISOR_README.md) with management.
 2. **Install Playwright** on the demo/audit machine and run `npm run audit:deployment-smoke` with services running.
-3. **Rotate demo passwords** before any pilot (`ALLOW_DEMO_DEFAULT_PASSWORD=false`).
+3. **Configure Zamtel auth** (`ZAMTEL_AUTH_BASE_URL`) and set `NODE_ENV=production` (dev-login disabled) before any pilot.
 4. **Complete** [`PRODUCTION_DEPLOYMENT_CHECKLIST.md`](PRODUCTION_DEPLOYMENT_CHECKLIST.md) on the target internal server.
 5. **Plan integration** using [`INTEGRATION_READINESS.md`](INTEGRATION_READINESS.md) for SSO and HR priorities.
 

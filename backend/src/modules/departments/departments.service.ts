@@ -12,8 +12,13 @@ export class DepartmentsService {
     private readonly mutation: DepartmentsMutationService,
   ) {}
 
-  findAll(activeOnly = true, page?: number, limit?: number) {
-    return this.query.findAll(activeOnly, page, limit);
+  findAll(
+    activeOnly = true,
+    page?: number,
+    limit?: number,
+    parentDepartmentId?: string | 'ALL',
+  ) {
+    return this.query.findAll(activeOnly, page, limit, parentDepartmentId);
   }
 
   findOne(id: string) {
