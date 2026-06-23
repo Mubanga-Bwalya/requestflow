@@ -12,7 +12,7 @@ export type DepartmentUser = {
 /** Active users in a department for team pickers (paginated; default first 100). */
 export async function fetchDepartmentUsers(departmentName: string): Promise<DepartmentUser[]> {
   const { data } = await api.get<PaginatedResponse<DepartmentUser>>("/users", {
-    params: { departmentName, page: 1, limit: 100 },
+    params: { departmentName, page: 1, limit: 500 },
   });
   return data.items;
 }

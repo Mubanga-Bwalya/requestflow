@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { normalizeEmail } from "@/lib/admin-form-utils";
 import {
   emptyUserForm,
@@ -13,7 +14,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { peekApiCache } from "@/lib/query-cache";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { apiErrorMessage } from "@/lib/api-error";
-import { createUser, fetchUsers, updateUser, type ApiUser } from "@/lib/users-api";
+import { createUser, fetchUsers, syncUsersDirectory, updateUser, type ApiUser } from "@/lib/users-api";
 
 export type { UserFormState };
 
@@ -23,7 +24,7 @@ export function useAdminUsers() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
-  const debouncedQ = useDebouncedValue(q.trim(), 300);
+  const debouncedQ = useDebouncedValue(q.trim(), 200);
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Active" | "Inactive">("ALL");
   const [open, setOpen] = useState(false);
@@ -33,6 +34,9 @@ export function useAdminUsers() {
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const refreshDirectoryOnNextLoad = useRef(true);
 
   const defaultDept = departments[0]?.name ?? "";
 
@@ -75,7 +79,7 @@ export function useAdminUsers() {
   }, []);
 
   const reload = useCallback(async () => {
-    const cacheKey = `users:page:${page}:${LIST_PAGE_SIZE}:${deptFilter === "ALL" ? "ALL" : deptFilter}`;
+    const cacheKey = `users:page:${page}:${LIST_PAGE_SIZE}:${deptFilter === "ALL" ? "ALL" : deptFilter}:${debouncedQ}:${statusFilter}`;
     const cached = peekApiCache<typeof result>(cacheKey);
     if (cached) {
       setResult(cached);
@@ -90,23 +94,31 @@ export function useAdminUsers() {
           page,
           limit: LIST_PAGE_SIZE,
           departmentName: deptFilter,
+          search: debouncedQ || undefined,
+          status: statusFilter,
+          refreshDirectory: refreshDirectoryOnNextLoad.current,
         }),
       );
+      refreshDirectoryOnNextLoad.current = false;
     } catch (e) {
       setLoadError(apiErrorMessage(e, "Could not load users. Please try again."));
     } finally {
       setLoading(false);
     }
-  }, [deptFilter, page]);
+  }, [debouncedQ, deptFilter, page, statusFilter]);
 
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
-    const cacheKey = `users:page:${page}:${LIST_PAGE_SIZE}:${deptFilter === "ALL" ? "ALL" : deptFilter}`;
-    const cached = peekApiCache<typeof result>(cacheKey);
+    const refreshDirectory = refreshDirectoryOnNextLoad.current;
+    refreshDirectoryOnNextLoad.current = false;
+    const cacheKey = `users:page:${page}:${LIST_PAGE_SIZE}:${deptFilter === "ALL" ? "ALL" : deptFilter}:${debouncedQ}:${statusFilter}`;
+    const useCache = !debouncedQ && !refreshDirectory;
+    const cached = useCache ? peekApiCache<typeof result>(cacheKey) : null;
     if (cached) {
       setResult(cached);
       setLoading(false);
@@ -117,43 +129,37 @@ export function useAdminUsers() {
     void (async () => {
       try {
         setLoadError(null);
-        const data = await fetchUsers({
-          page,
-          limit: LIST_PAGE_SIZE,
-          departmentName: deptFilter,
-        });
+        const data = await fetchUsers(
+          {
+            page,
+            limit: LIST_PAGE_SIZE,
+            departmentName: deptFilter,
+            search: debouncedQ || undefined,
+            status: statusFilter,
+            refreshDirectory,
+          },
+          controller.signal,
+        );
         if (!cancelled) setResult(data);
       } catch (e) {
-        if (!cancelled) {
-          setLoadError(apiErrorMessage(e, "Could not load users. Please try again."));
+        if (cancelled || (axios.isAxiosError(e) && (e.code === "ERR_CANCELED" || e.name === "CanceledError"))) {
+          return;
         }
+        setLoadError(apiErrorMessage(e, "Could not load users. Please try again."));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !controller.signal.aborted) setLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [deptFilter, page]);
+  }, [debouncedQ, deptFilter, page, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [deptFilter]);
-
-  const filtered = useMemo(() => {
-    const query = debouncedQ.toLowerCase();
-    return result.items.filter((u) => {
-      const status = u.isActive ? "Active" : "Inactive";
-      if (statusFilter !== "ALL" && status !== statusFilter) return false;
-      if (!query) return true;
-      return (
-        u.fullName.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query) ||
-        (u.roleName ?? "").toLowerCase().includes(query)
-      );
-    });
-  }, [debouncedQ, result.items, statusFilter]);
+  }, [deptFilter, debouncedQ, statusFilter]);
 
   function openAdd() {
     setEditing(null);
@@ -166,13 +172,19 @@ export function useAdminUsers() {
   function openEdit(u: ApiUser) {
     setEditing(u);
     setShowAdvanced(Boolean(u.externalEmployeeId || u.jobTitle));
-    const { department, sectionId } = resolveDeptSection(u.departmentName);
+    let department = u.departmentName ?? defaultDept;
+    let sectionId = u.sectionId ?? "";
+    if (!u.sectionName && u.departmentName) {
+      const resolved = resolveDeptSection(u.departmentName);
+      department = resolved.department;
+      sectionId = resolved.sectionId;
+    }
     setForm({
       name: u.fullName,
       email: u.email,
       jobTitle: u.jobTitle ?? "",
       externalEmployeeId: u.externalEmployeeId ?? "",
-      department,
+      department: department || defaultDept,
       sectionId,
       role: normalizeAssignableRole(u.roleName),
       status: u.isActive ? "Active" : "Inactive",
@@ -218,6 +230,24 @@ export function useAdminUsers() {
     }
   }
 
+  async function syncFromZamtel() {
+    setSyncMessage(null);
+    setSyncing(true);
+    try {
+      const result = await syncUsersDirectory();
+      setSyncMessage(result.message);
+      if (result.ok) {
+        refreshDirectoryOnNextLoad.current = true;
+        setPage(1);
+        await reload();
+      }
+    } catch (e) {
+      setSyncMessage(apiErrorMessage(e, "Could not sync from Zamtel directory."));
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return {
     result,
     departments,
@@ -230,7 +260,7 @@ export function useAdminUsers() {
     setDeptFilter,
     statusFilter,
     setStatusFilter,
-    filtered,
+    items: result.items,
     open,
     setOpen,
     editing,
@@ -243,8 +273,11 @@ export function useAdminUsers() {
     error,
     loadError,
     saving,
+    syncing,
+    syncMessage,
     openAdd,
     openEdit,
     save,
+    syncFromZamtel,
   };
 }

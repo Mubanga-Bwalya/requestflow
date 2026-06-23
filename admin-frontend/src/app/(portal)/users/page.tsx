@@ -19,8 +19,21 @@ export default function Page() {
       <PageHeader
         title="Manage Users"
         description="Create and maintain employee and manager profiles (saved to database)."
-        actions={<Button onClick={u.openAdd}>Add User</Button>}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => void u.syncFromZamtel()} disabled={u.syncing}>
+              {u.syncing ? "Syncing from Zamtel…" : "Sync from Zamtel"}
+            </Button>
+            <Button onClick={u.openAdd}>Add User</Button>
+          </div>
+        }
       />
+
+      {u.syncMessage ? (
+        <div className="mb-4 rounded-md border border-brand-dark/10 bg-brand-primary/5 p-3 text-sm text-zamtel-muted">
+          {u.syncMessage}
+        </div>
+      ) : null}
 
       {u.loadError ? (
         <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -30,7 +43,7 @@ export default function Page() {
 
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Input
-          placeholder="Search within this page only (name, email, role)…"
+          placeholder="Search all users (name, email, position, department, section, access)…"
           value={u.q}
           onChange={(e) => u.setQ(e.target.value)}
         />
@@ -49,8 +62,8 @@ export default function Page() {
         </Select>
       </div>
 
-      {u.loading && !u.filtered.length ? (
-        <DataListSkeleton rowCount={6} columnCount={6} />
+      {u.loading && !u.items.length ? (
+        <DataListSkeleton rowCount={6} columnCount={8} />
       ) : (
         <>
           <DataTable
@@ -58,15 +71,19 @@ export default function Page() {
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
               { key: "department", label: "Department" },
-              { key: "role", label: "Role" },
+              { key: "section", label: "Sub-section" },
+              { key: "position", label: "Position" },
+              { key: "access", label: "Access" },
               { key: "status", label: "Status" },
               { key: "__actions", label: "" },
             ]}
-            rows={u.filtered.map((row): DataTableRow => ({
+            rows={u.items.map((row): DataTableRow => ({
               name: row.fullName,
               email: row.email,
               department: row.departmentName ?? "—",
-              role: row.roleName ?? "—",
+              section: row.sectionName ?? "—",
+              position: row.jobTitle ?? "—",
+              access: row.roleName ?? "—",
               status: row.isActive ? "Active" : "Inactive",
               __actions: <TableActionButton onClick={() => u.openEdit(row)}>Edit</TableActionButton>,
             }))}

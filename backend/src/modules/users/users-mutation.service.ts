@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import { mapUserToResponse } from './user-response.mapper';
+import { userDepartmentInclude } from './user-department.include';
 import {
   resolveUserDepartmentId,
   resolveUserRoleId,
@@ -62,7 +63,7 @@ export class UsersMutationService {
         isActive: dto.isActive ?? true,
       },
       include: {
-        department: { select: { id: true, name: true } },
+        department: userDepartmentInclude,
         role: { select: { id: true, name: true } },
       },
     });
@@ -121,7 +122,7 @@ export class UsersMutationService {
         ...(roleId !== undefined ? { roleId } : {}),
       },
       include: {
-        department: { select: { id: true, name: true } },
+        department: userDepartmentInclude,
         role: { select: { id: true, name: true } },
       },
     });

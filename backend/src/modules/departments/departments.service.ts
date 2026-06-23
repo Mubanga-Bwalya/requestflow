@@ -3,6 +3,7 @@ import type { CreateDepartmentDto } from './dto/create-department.dto';
 import type { UpdateDepartmentDto } from './dto/update-department.dto';
 import { DepartmentsMutationService } from './departments-mutation.service';
 import { DepartmentsQueryService } from './departments-query.service';
+import { DepartmentsRosterService } from './departments-roster.service';
 
 /** Facade — keeps controller stable while query and mutation logic stay separate. */
 @Injectable()
@@ -10,6 +11,7 @@ export class DepartmentsService {
   constructor(
     private readonly query: DepartmentsQueryService,
     private readonly mutation: DepartmentsMutationService,
+    private readonly roster: DepartmentsRosterService,
   ) {}
 
   findAll(
@@ -23,6 +25,26 @@ export class DepartmentsService {
 
   findOne(id: string) {
     return this.query.findOne(id);
+  }
+
+  getRoster(id: string) {
+    return this.roster.getRoster(id);
+  }
+
+  assignSectionMembers(
+    parentId: string,
+    sectionId: string,
+    userIds: string[],
+  ) {
+    return this.roster.assignSectionMembers(parentId, sectionId, userIds);
+  }
+
+  unassignSectionMembers(
+    parentId: string,
+    sectionId: string,
+    userIds: string[],
+  ) {
+    return this.roster.unassignSectionMembers(parentId, sectionId, userIds);
   }
 
   create(dto: CreateDepartmentDto) {

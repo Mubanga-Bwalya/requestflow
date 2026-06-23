@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
+import { PersonSelect } from "@/components/ui/person-select";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fieldLabelClassName } from "@/components/ui/field-control";
@@ -99,14 +100,17 @@ export function MilestoneDialogs(props: Props) {
           </div>
           <div>
             <label className={fieldLabelClassName}>Owner *</label>
-            <Select value={mOwnerId} onChange={(e) => setMOwnerId(e.target.value)}>
-              <option value="">Select owner…</option>
-              {assignment.members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
+            <PersonSelect
+              value={mOwnerId}
+              onChange={setMOwnerId}
+              people={assignment.members.map((m) => ({
+                id: m.id,
+                fullName: m.name,
+              }))}
+              allowEmpty
+              emptyLabel="Select owner…"
+              placeholder="Choose owner…"
+            />
             <FieldError message={fieldErrors.owner} />
           </div>
           <div>

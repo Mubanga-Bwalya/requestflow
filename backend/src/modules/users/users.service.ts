@@ -17,8 +17,23 @@ export class UsersService {
     departmentName?: string,
     page?: number,
     limit?: number,
+    refreshDirectory?: boolean,
+    search?: string,
+    status?: 'active' | 'inactive',
   ) {
-    return this.query.findAll(actorId, departmentName, page, limit);
+    return this.query.findAll(
+      actorId,
+      departmentName,
+      page,
+      limit,
+      refreshDirectory,
+      search,
+      status,
+    );
+  }
+
+  syncDirectory(actorId: string) {
+    return this.query.syncDirectory(actorId);
   }
 
   findByEmail(email: string, actorId?: string) {

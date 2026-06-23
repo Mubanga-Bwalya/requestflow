@@ -14,6 +14,7 @@ import { wantsPagination } from '../../common/pagination';
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { AssignSectionMembersDto } from './dto/assign-section-members.dto';
 
 @Controller('departments')
 export class DepartmentsController {
@@ -40,6 +41,42 @@ export class DepartmentsController {
       paginate ? parseInt(page ?? '1', 10) : undefined,
       paginate ? parseInt(limit ?? '20', 10) : undefined,
       parentDepartmentId?.trim() || undefined,
+    );
+  }
+
+  @Get(':id/roster')
+  @UseGuards(AdminRoleGuard)
+  getRoster(@Param('id') id: string) {
+    return this.departmentsService.getRoster(id);
+  }
+
+  @Throttle({ writes: { limit: 60, ttl: 60_000 } })
+  @Post(':id/sections/:sectionId/members')
+  @UseGuards(AdminRoleGuard)
+  assignSectionMembers(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Body() body: AssignSectionMembersDto,
+  ) {
+    return this.departmentsService.assignSectionMembers(
+      id,
+      sectionId,
+      body.userIds,
+    );
+  }
+
+  @Throttle({ writes: { limit: 60, ttl: 60_000 } })
+  @Post(':id/sections/:sectionId/members/remove')
+  @UseGuards(AdminRoleGuard)
+  unassignSectionMembers(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Body() body: AssignSectionMembersDto,
+  ) {
+    return this.departmentsService.unassignSectionMembers(
+      id,
+      sectionId,
+      body.userIds,
     );
   }
 

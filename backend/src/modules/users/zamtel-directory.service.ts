@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
+  inferDepartmentFromTitle,
   normalizeDepartmentName,
   resolveDepartmentAlias,
 } from './department-aliases';
@@ -51,7 +52,9 @@ const NAME_MATCH_THRESHOLD = 0.82;
 /** An existing department reduced to its normalized name for matching. */
 interface KnownDepartment {
   id: string;
+  name: string;
   norm: string;
+  parentDepartmentId: string | null;
 }
 
 @Injectable()
@@ -68,9 +71,14 @@ export class ZamtelDirectoryService {
    * callers can invoke it on every list request. Never throws — on any failure
    * we log and leave the existing local data in place.
    */
-  async ensureSynced(token: string | null): Promise<void> {
-    if (!token) return;
-    if (Date.now() - this.lastSyncAt < SYNC_INTERVAL_MS) return;
+  async ensureSynced(token: string | null, force = false): Promise<void> {
+    if (!token) {
+      this.logger.debug(
+        'LDAP directory sync skipped — no Zamtel staff token (sign in with GN + password).',
+      );
+      return;
+    }
+    if (!force && Date.now() - this.lastSyncAt < SYNC_INTERVAL_MS) return;
     if (this.inFlight) return this.inFlight;
 
     this.inFlight = this.sync(token)
@@ -159,8 +167,8 @@ export class ZamtelDirectoryService {
       (await this.prisma.user.findUnique({ where: { email } }));
 
     if (!existing) {
-      const departmentId = this.resolveDepartmentId(
-        entry.department,
+      const departmentId = await this.resolveParentDepartmentId(
+        this.extractDepartmentName(entry),
         departments,
       );
       await this.prisma.user.create({
@@ -177,12 +185,17 @@ export class ZamtelDirectoryService {
       return true;
     }
 
-    // Refresh only the fields the directory owns. Department and role of an
-    // existing user are preserved (admin assignments win); department is only
-    // backfilled when missing. isActive is left untouched so admins can disable.
-    const backfillDepartmentId = existing.departmentId
-      ? undefined
-      : this.resolveDepartmentId(entry.department, departments);
+    // Refresh directory-owned fields on every sync. Role and isActive are
+    // preserved — admins control portal access and account status locally.
+    const parentId = await this.resolveParentDepartmentId(
+      this.extractDepartmentName(entry),
+      departments,
+    );
+    const departmentId = this.resolveDepartmentIdForSync(
+      existing.departmentId,
+      parentId,
+      departments,
+    );
 
     await this.prisma.user.update({
       where: { id: existing.id },
@@ -190,7 +203,7 @@ export class ZamtelDirectoryService {
         fullName,
         gn,
         jobTitle,
-        ...(backfillDepartmentId ? { departmentId: backfillDepartmentId } : {}),
+        ...(departmentId ? { departmentId } : {}),
       },
     });
     return true;
@@ -224,42 +237,110 @@ export class ZamtelDirectoryService {
 
   private async loadKnownDepartments(): Promise<KnownDepartment[]> {
     const rows = await this.prisma.department.findMany({
-      select: { id: true, name: true },
+      select: { id: true, name: true, parentDepartmentId: true },
     });
-    return rows.map((d) => ({ id: d.id, norm: this.normalizeName(d.name) }));
+    return rows.map((d) => ({
+      id: d.id,
+      name: d.name,
+      norm: this.normalizeName(d.name),
+      parentDepartmentId: d.parentDepartmentId,
+    }));
   }
 
   /**
-   * Resolve an LDAP `department` string to an existing local department id. The
-   * department list is curated (admin/seed-owned), so this NEVER creates new
-   * rows — it maps onto what already exists, in order:
-   *   1) explicit alias (raw AD variant → canonical name, see department-aliases)
-   *   2) exact match after whitespace/case normalization
-   *   3) fuzzy match for minor typos (e.g. "Information Technolgy")
-   *   4) fallback to "Shared Services" so a user is never left without a home
-   * Returns null only if even the fallback department is missing.
+   * Best-effort department string from an LDAP row. Zamtel often leaves
+   * `department` empty but encodes the team in `title` or `memberOf` OUs.
    */
-  private resolveDepartmentId(
-    name: string | undefined,
+  private extractDepartmentName(entry: LdapDirectoryUser): string | undefined {
+    const direct = entry.department?.trim();
+    if (direct) return direct;
+
+    const fromTitle = inferDepartmentFromTitle(entry.title);
+    if (fromTitle) return fromTitle;
+
+    for (const dn of entry.memberOf ?? []) {
+      const fromDn = this.extractDepartmentFromDn(dn);
+      if (fromDn) return fromDn;
+    }
+
+    return undefined;
+  }
+
+  /** Pull a human-readable OU segment from an LDAP distinguished name. */
+  private extractDepartmentFromDn(dn: string): string | null {
+    const skip = new Set([
+      'users',
+      'zamtel',
+      'staff',
+      'employees',
+      'accounts',
+      'corp',
+      'corporate',
+    ]);
+    for (const m of dn.matchAll(/OU=([^,]+)/gi)) {
+      const name = m[1]?.trim();
+      if (!name) continue;
+      const norm = normalizeDepartmentName(name);
+      if (skip.has(norm)) continue;
+      return resolveDepartmentAlias(norm) ?? name;
+    }
+    return null;
+  }
+
+  /**
+   * LDAP assigns users to the top-level department only. Sub-section membership
+   * is controlled by admins in the portal.
+   */
+  private resolveDepartmentIdForSync(
+    currentDepartmentId: string | null,
+    parentId: string | null,
     departments: KnownDepartment[],
   ): string | null {
+    if (!parentId) return currentDepartmentId;
+    if (!currentDepartmentId) return parentId;
+
+    const current = departments.find((d) => d.id === currentDepartmentId);
+    if (!current) return parentId;
+
+    const currentParentId = current.parentDepartmentId ?? current.id;
+    if (currentParentId === parentId) return currentDepartmentId;
+
+    return parentId;
+  }
+
+  private async resolveParentDepartmentId(
+    name: string | undefined,
+    departments: KnownDepartment[],
+  ): Promise<string | null> {
+    return this.resolveOrCreateDepartmentId(name, departments);
+  }
+
+  /**
+   * Resolve an LDAP `department` string to a local **top-level** department id.
+   * Applies alias folding, then exact/fuzzy match against known rows. When nothing
+   * matches, creates a new top-level department from the Zamtel value.
+   */
+  private async resolveOrCreateDepartmentId(
+    name: string | undefined,
+    departments: KnownDepartment[],
+  ): Promise<string | null> {
     const raw =
       name && name.trim().length > 0 ? name.trim() : FALLBACK_DEPARTMENT_NAME;
     const norm = this.normalizeName(raw);
 
     // 1) Explicit alias for known AD variants → canonical name.
     const aliasCanon = resolveDepartmentAlias(norm);
-    const targetNorm = aliasCanon ? this.normalizeName(aliasCanon) : norm;
+    const displayName = aliasCanon ?? raw;
+    const targetNorm = this.normalizeName(displayName);
+    const topLevel = departments.filter((d) => !d.parentDepartmentId);
 
-    // 2) Exact match.
-    const exact = departments.find((d) => d.norm === targetNorm);
+    // 2) Exact match (in-memory cache from this sync batch).
+    const exact = topLevel.find((d) => d.norm === targetNorm);
     if (exact) return exact.id;
 
-    // 3) Fuzzy match: closest existing department above the similarity
-    //    threshold. The ratio scales with length, so short distinct names
-    //    (e.g. "HRBP") still require a near-exact match.
+    // 3) Fuzzy match against existing top-level departments.
     let best: { dept: KnownDepartment; ratio: number } | null = null;
-    for (const dept of departments) {
+    for (const dept of topLevel) {
       const ratio = this.similarity(targetNorm, dept.norm);
       if (ratio >= NAME_MATCH_THRESHOLD && (!best || ratio > best.ratio)) {
         best = { dept, ratio };
@@ -267,16 +348,67 @@ export class ZamtelDirectoryService {
     }
     if (best) return best.dept.id;
 
-    // 4) No match — fall back to Shared Services rather than create drift.
-    const fallback = departments.find(
-      (d) => d.norm === this.normalizeName(FALLBACK_DEPARTMENT_NAME),
-    );
-    if (!fallback) {
-      this.logger.warn(
-        `No match for LDAP department "${raw}" and fallback "${FALLBACK_DEPARTMENT_NAME}" is missing.`,
-      );
+    // 4) Re-check DB (another request may have created it) then create.
+    const existing = await this.prisma.department.findFirst({
+      where: {
+        name: { equals: displayName, mode: 'insensitive' },
+        parentDepartmentId: null,
+      },
+      select: { id: true, name: true, parentDepartmentId: true },
+    });
+    if (existing) {
+      const known: KnownDepartment = {
+        id: existing.id,
+        name: existing.name,
+        norm: this.normalizeName(existing.name),
+        parentDepartmentId: existing.parentDepartmentId,
+      };
+      if (!departments.some((d) => d.id === known.id)) {
+        departments.push(known);
+      }
+      return existing.id;
     }
-    return fallback?.id ?? null;
+
+    try {
+      const created = await this.prisma.department.create({
+        data: { name: displayName, parentDepartmentId: null },
+      });
+      departments.push({
+        id: created.id,
+        name: created.name,
+        norm: targetNorm,
+        parentDepartmentId: null,
+      });
+      this.logger.log(
+        `Auto-created department "${displayName}" from LDAP directory.`,
+      );
+      return created.id;
+    } catch (err) {
+      // Unique race — fetch the row another upsert just created.
+      const raced = await this.prisma.department.findFirst({
+        where: {
+          name: { equals: displayName, mode: 'insensitive' },
+          parentDepartmentId: null,
+        },
+        select: { id: true, name: true, parentDepartmentId: true },
+      });
+      if (raced) {
+        const known: KnownDepartment = {
+          id: raced.id,
+          name: raced.name,
+          norm: this.normalizeName(raced.name),
+          parentDepartmentId: raced.parentDepartmentId,
+        };
+        if (!departments.some((d) => d.id === known.id)) {
+          departments.push(known);
+        }
+        return raced.id;
+      }
+      this.logger.warn(
+        `Could not resolve LDAP department "${raw}": ${(err as Error).message}`,
+      );
+      return null;
+    }
   }
 
   /** Lowercase, trim, and collapse internal whitespace runs to a single space. */

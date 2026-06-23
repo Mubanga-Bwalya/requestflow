@@ -30,9 +30,22 @@ export class UsersController {
     @Query('departmentName') departmentName?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('refreshDirectory') refreshDirectory?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
   ) {
     const isAdmin = !!user.roleName && ADMIN_ROLE_NAMES.has(user.roleName);
     const dept = departmentName?.trim();
+    const forceDirectorySync =
+      refreshDirectory === '1' ||
+      refreshDirectory === 'true' ||
+      refreshDirectory === 'yes';
+    const normalizedStatus =
+      status?.toLowerCase() === 'active'
+        ? 'active'
+        : status?.toLowerCase() === 'inactive'
+          ? 'inactive'
+          : undefined;
 
     // Admins can list every user, optionally filtered by department — this backs
     // the admin user-management page (including its department filter), so it
@@ -44,6 +57,9 @@ export class UsersController {
         dept || undefined,
         paginate ? parseInt(page ?? '1', 10) : undefined,
         paginate ? parseInt(limit ?? '20', 10) : undefined,
+        forceDirectorySync,
+        search?.trim() || undefined,
+        normalizedStatus,
       );
     }
 
@@ -70,6 +86,13 @@ export class UsersController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.usersService.findByEmail(decodeURIComponent(email), user.id);
+  }
+
+  @Post('sync-directory')
+  @UseGuards(AdminRoleGuard)
+  @Throttle({ writes: { limit: 6, ttl: 60_000 } })
+  syncDirectory(@CurrentUser() actor: RequestUser) {
+    return this.usersService.syncDirectory(actor.id);
   }
 
   @Throttle({ writes: { limit: 60, ttl: 60_000 } })

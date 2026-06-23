@@ -11,6 +11,7 @@ import { CacheService } from '../../common/cache/cache.service';
 import { SystemEventsService } from '../../common/system-events/system-events.service';
 import type { JwtPayload } from '../../common/auth.types';
 import { mapUserToResponse } from '../users/user-response.mapper';
+import { userDepartmentInclude } from '../users/user-department.include';
 import { loadManagedDepartments } from '../../common/department-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ZamtelStaffAuthService } from './zamtel-auth.service';
@@ -84,7 +85,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, isActive: true },
       include: {
-        department: { select: { id: true, name: true } },
+        department: userDepartmentInclude,
         role: { select: { id: true, name: true } },
       },
     });
@@ -144,7 +145,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, isActive: true },
       include: {
-        department: { select: { id: true, name: true } },
+        department: userDepartmentInclude,
         role: { select: { id: true, name: true } },
       },
     });
