@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { StaffTokenStore } from '../auth/staff-token.store';
 import { mapUserToResponse } from './user-response.mapper';
+import { userDepartmentInclude } from './user-department.include';
 import { ZamtelDirectoryService } from './zamtel-directory.service';
 
 @Injectable()
@@ -22,10 +23,24 @@ export class UsersQueryService {
    * using the requesting user's captured staff token. Throttled and failure-safe
    * inside the directory service, so this is cheap to call on every list.
    */
-  private async syncDirectory(actorId?: string): Promise<void> {
+  private async maybeSyncDirectory(actorId?: string, force = false): Promise<void> {
     if (!actorId) return;
     const token = await this.staffTokens.get(actorId);
-    await this.directory.ensureSynced(token);
+    await this.directory.ensureSynced(token, force);
+  }
+
+  /** Force LDAP directory sync (admin). Requires Zamtel GN login token. */
+  async syncDirectory(actorId: string): Promise<{ ok: boolean; message: string }> {
+    const token = await this.staffTokens.get(actorId);
+    if (!token) {
+      return {
+        ok: false,
+        message:
+          'No Zamtel staff session — log out and sign in again with your GN and AD password.',
+      };
+    }
+    await this.directory.ensureSynced(token, true);
+    return { ok: true, message: 'Directory sync started.' };
   }
 
   async findAll(
@@ -33,20 +48,19 @@ export class UsersQueryService {
     departmentName?: string,
     page?: number,
     limit?: number,
+    refreshDirectory = false,
+    search?: string,
+    status?: 'active' | 'inactive',
   ) {
-    await this.syncDirectory(actorId);
-    const where: Prisma.UserWhereInput | undefined = departmentName
-      ? {
-          department: {
-            name: {
-              equals: departmentName.trim(),
-              mode: Prisma.QueryMode.insensitive,
-            },
-          },
-        }
-      : undefined;
+    // Directory sync is expensive — only run on explicit refresh or unfiltered browse.
+    if (refreshDirectory) {
+      await this.maybeSyncDirectory(actorId, true);
+    } else if (!search?.trim()) {
+      await this.maybeSyncDirectory(actorId, false);
+    }
+    const where = this.buildListWhere(departmentName, search, status);
     const include = {
-      department: { select: { id: true, name: true } },
+      department: userDepartmentInclude,
       role: { select: { id: true, name: true } },
     } as const;
 
@@ -68,12 +82,75 @@ export class UsersQueryService {
     );
   }
 
+  private buildListWhere(
+    departmentName?: string,
+    search?: string,
+    status?: 'active' | 'inactive',
+  ): Prisma.UserWhereInput {
+    const and: Prisma.UserWhereInput[] = [];
+
+    const dept = departmentName?.trim();
+    if (dept) {
+      and.push({
+        OR: [
+          {
+            department: {
+              name: { equals: dept, mode: Prisma.QueryMode.insensitive },
+              parentDepartmentId: null,
+            },
+          },
+          {
+            department: {
+              parent: {
+                name: { equals: dept, mode: Prisma.QueryMode.insensitive },
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    const q = search?.trim();
+    if (q) {
+      and.push({
+        OR: [
+          { fullName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { email: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { jobTitle: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          { gn: { contains: q, mode: Prisma.QueryMode.insensitive } },
+          {
+            role: {
+              name: { contains: q, mode: Prisma.QueryMode.insensitive },
+            },
+          },
+          {
+            department: {
+              OR: [
+                { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+                {
+                  parent: {
+                    name: { contains: q, mode: Prisma.QueryMode.insensitive },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    }
+
+    if (status === 'active') and.push({ isActive: true });
+    if (status === 'inactive') and.push({ isActive: false });
+
+    return and.length ? { AND: and } : {};
+  }
+
   async findByEmail(email: string, actorId?: string) {
-    await this.syncDirectory(actorId);
+    await this.maybeSyncDirectory(actorId);
     const user = await this.prisma.user.findFirst({
       where: { email: { equals: email.trim(), mode: 'insensitive' } },
       include: {
-        department: { select: { id: true, name: true } },
+        department: userDepartmentInclude,
         role: { select: { id: true, name: true } },
       },
     });
@@ -89,15 +166,23 @@ export class UsersQueryService {
     limit?: number,
     actorId?: string,
   ) {
-    await this.syncDirectory(actorId);
+    await this.maybeSyncDirectory(actorId);
+    const dept = departmentName.trim();
     const where: Prisma.UserWhereInput = {
       isActive: true,
-      department: {
-        name: {
-          equals: departmentName.trim(),
-          mode: Prisma.QueryMode.insensitive,
+      OR: [
+        {
+          department: {
+            name: { equals: dept, mode: Prisma.QueryMode.insensitive },
+            parentDepartmentId: null,
+          },
         },
-      },
+        {
+          department: {
+            parent: { name: { equals: dept, mode: Prisma.QueryMode.insensitive } },
+          },
+        },
+      ],
     };
     const pagination = resolveListPagination(page, limit);
     const [total, rows] = await Promise.all([

@@ -25,6 +25,10 @@
     "cleanup-dev-requests": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/cleanup-dev-requests.ts",
     "db:seed": "ts-node --project prisma/tsconfig.seed.json prisma/seed.ts",
     "db:seed:reset": "ts-node --project prisma/tsconfig.seed.json prisma/seed.ts --reset",
+    "db:purge-demo": "ts-node --project prisma/tsconfig.seed.json scripts/purge-demo-org-data.ts",
+    "db:seed-sections": "ts-node --project prisma/tsconfig.seed.json scripts/seed-department-sections.ts",
+    "db:backfill-sections": "ts-node --project prisma/tsconfig.seed.json scripts/backfill-user-sections.ts",
+    "db:remove-sections": "ts-node --project prisma/tsconfig.seed.json scripts/remove-department-sections.ts",
     "db:apply-sql": "bash database/apply-migrations.sh"
   },
   "dependencies": {

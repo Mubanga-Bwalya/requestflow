@@ -71,9 +71,9 @@ export function UsersFormDialog({
       {error ? <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
       {editing ? (
         <div className="mb-3 rounded-md border border-brand-dark/10 bg-brand-primary/5 p-3 text-sm text-zamtel-muted">
-          Profile details (name, email, status, job title) are synced from the Zamtel directory and
+          Profile details (name, email, position, status) are synced from the Zamtel directory and
           can&apos;t be edited here. Only <span className="font-medium text-brand-dark">department</span>{" "}
-          and <span className="font-medium text-brand-dark">role</span> are editable.
+          and <span className="font-medium text-brand-dark">access</span> are editable.
         </div>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
@@ -149,15 +149,36 @@ export function UsersFormDialog({
           );
         })()}
         <div>
-          <label className={fieldLabelClassName}>Role *</label>
+          <label className={fieldLabelClassName}>Position</label>
+          {editing ? (
+            <ReadOnlyValue value={form.jobTitle} />
+          ) : (
+            <>
+              <Input
+                className="mt-1"
+                maxLength={USER_JOB_TITLE_MAX}
+                value={form.jobTitle}
+                onChange={(e) => setForm((p) => ({ ...p, jobTitle: e.target.value }))}
+                placeholder="Usually set from Zamtel directory on sign-in"
+              />
+              <FieldError message={fieldErrors.jobTitle} />
+            </>
+          )}
+        </div>
+        <div>
+          <label className={fieldLabelClassName}>Access *</label>
           <Select className="mt-1" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
-            <option value="">Select role…</option>
+            <option value="">Select access level…</option>
             {ASSIGNABLE_USER_ROLES.map((r) => (
               <option key={r.name} value={r.name}>
                 {r.label}
               </option>
             ))}
           </Select>
+          <p className="mt-1 text-xs text-zamtel-muted">
+            Portal permissions (Employee, Manager, or Admin). Separate from the Zamtel job position
+            above.
+          </p>
           <FieldError message={fieldErrors.role} />
         </div>
         <div>
@@ -208,16 +229,6 @@ export function UsersFormDialog({
         >
           <summary className="rf-summary-toggle px-1 text-sm font-medium text-brand-dark">Advanced options</summary>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium">Job title (optional)</label>
-              <Input
-                className="mt-1"
-                maxLength={USER_JOB_TITLE_MAX}
-                value={form.jobTitle}
-                onChange={(e) => setForm((p) => ({ ...p, jobTitle: e.target.value }))}
-              />
-              <FieldError message={fieldErrors.jobTitle} />
-            </div>
             <div>
               <label className="text-sm font-medium">External employee ID (optional)</label>
               <Input

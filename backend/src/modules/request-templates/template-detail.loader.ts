@@ -10,7 +10,13 @@ export async function loadTemplateDetail(
   const t = await prisma.requestTemplate.findUnique({
     where: { id },
     include: {
-      department: { select: { id: true, name: true } },
+      department: {
+        select: {
+          id: true,
+          name: true,
+          parent: { select: { name: true } },
+        },
+      },
       fields: {
         where: activeFieldsOnly ? { isActive: true } : undefined,
         orderBy: { displayOrder: 'asc' },
@@ -27,7 +33,9 @@ export async function loadTemplateDetail(
     name: t.name,
     description: t.description,
     departmentId: t.departmentId,
-    departmentName: t.department.name,
+    departmentName: t.department.parent
+      ? `${t.department.parent.name} > ${t.department.name}`
+      : t.department.name,
     isActive: t.isActive,
     fields: t.fields.map((f) => mapTemplateField(f)),
   };

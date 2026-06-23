@@ -3,12 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PersonSelect } from "@/components/ui/person-select";
 import { Select } from "@/components/ui/select";
 import { fieldLabelClassName } from "@/components/ui/field-control";
 import { DEPT_EXTERNAL_CODE_MAX, DEPT_NAME_MAX } from "@/lib/admin-form-utils";
 import type { ApiDepartment } from "@/lib/departments-api";
 import type { DeptFormState } from "@/hooks/use-admin-departments";
-import { SectionsPanel } from "@/components/admin-departments/sections-panel";
 
 type Props = {
   mode: "add" | "edit" | null;
@@ -21,12 +21,11 @@ type Props = {
   setShowAdvanced: (v: boolean) => void;
   fieldErrors: Partial<Record<keyof DeptFormState, string>>;
   allDepartments: ApiDepartment[];
-  deptUsers: { id: string; fullName: string }[];
+  deptUsers: { id: string; fullName: string; email?: string | null; jobTitle?: string | null }[];
   error: string | null;
   saving: boolean;
   canSave: boolean;
   onSave: () => void;
-  onSectionsChanged: () => Promise<void> | void;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -50,10 +49,8 @@ export function DepartmentFormDialog({
   saving,
   canSave,
   onSave,
-  onSectionsChanged,
 }: Props) {
   const advancedLabel = mode === "add" ? "Advanced setup options" : "Advanced options";
-  const showSections = mode === "edit" && editing !== null && editing.parentDepartmentId === null;
 
   return (
     <Dialog
@@ -90,19 +87,16 @@ export function DepartmentFormDialog({
               <label className={fieldLabelClassName} htmlFor="dept-form-manager">
                 Department manager
               </label>
-              <Select
+              <PersonSelect
                 id="dept-form-manager"
                 className="mt-1"
                 value={form.managerUserId}
-                onChange={(e) => setForm((p) => ({ ...p, managerUserId: e.target.value }))}
-              >
-                <option value="">No manager</option>
-                {deptUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.fullName}
-                  </option>
-                ))}
-              </Select>
+                onChange={(managerUserId) => setForm((p) => ({ ...p, managerUserId }))}
+                people={deptUsers}
+                allowEmpty
+                emptyLabel="No manager"
+                placeholder="Choose a manager…"
+              />
               <p className="mt-1 text-xs text-zamtel-muted">
                 Select who manages this department&apos;s inbox. Assignment is manual — not inferred from user role.
               </p>
@@ -165,14 +159,6 @@ export function DepartmentFormDialog({
             ) : null}
           </div>
         </details>
-
-        {showSections && editing ? (
-          <SectionsPanel
-            department={editing}
-            parentManagers={deptUsers}
-            onChanged={onSectionsChanged}
-          />
-        ) : null}
       </div>
       <div className="rf-dialog-footer">
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

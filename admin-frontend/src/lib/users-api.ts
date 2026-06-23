@@ -13,25 +13,61 @@ export type ApiUser = {
   isActive: boolean;
   departmentId: string | null;
   departmentName: string | null;
+  sectionId: string | null;
+  sectionName: string | null;
   roleId: string | null;
   roleName: string | null;
 };
 
-export async function fetchUsers(params?: {
-  page?: number;
-  limit?: number;
-  departmentName?: string;
-}): Promise<PaginatedResponse<ApiUser>> {
+export async function syncUsersDirectory(): Promise<{ ok: boolean; message: string }> {
+  const { data } = await api.post<{ ok: boolean; message: string }>("/users/sync-directory");
+  invalidateApiCache("users:");
+  invalidateApiCache("users:page:");
+  invalidateApiCache("departments:");
+  return data;
+}
+
+export async function fetchUsers(
+  params?: {
+    page?: number;
+    limit?: number;
+    departmentName?: string;
+    refreshDirectory?: boolean;
+    search?: string;
+    status?: "ALL" | "Active" | "Inactive";
+  },
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<ApiUser>> {
   const page = params?.page ?? 1;
   const limit = params?.limit ?? LIST_PAGE_SIZE;
   const dept = params?.departmentName && params.departmentName !== "ALL" ? params.departmentName : undefined;
-  const key = `users:page:${page}:${limit}:${dept ?? "ALL"}`;
-  return cachedApi(key, async () => {
+  const refreshDirectory = params?.refreshDirectory === true;
+  const search = params?.search?.trim() || undefined;
+  const status =
+    params?.status === "Active" ? "active" : params?.status === "Inactive" ? "inactive" : undefined;
+  const key = `users:page:${page}:${limit}:${dept ?? "ALL"}:${search ?? ""}:${status ?? "ALL"}`;
+
+  const load = async () => {
     const { data } = await api.get<PaginatedResponse<ApiUser>>("/users", {
-      params: { page, limit, ...(dept ? { departmentName: dept } : {}) },
+      params: {
+        page,
+        limit,
+        ...(dept ? { departmentName: dept } : {}),
+        ...(refreshDirectory ? { refreshDirectory: "true" } : {}),
+        ...(search ? { search } : {}),
+        ...(status ? { status } : {}),
+      },
+      signal,
     });
     return data;
-  }, 15_000);
+  };
+
+  if (refreshDirectory || signal) {
+    if (refreshDirectory) invalidateApiCache("users:page:");
+    return load();
+  }
+
+  return cachedApi(key, load, 15_000);
 }
 
 export async function fetchDepartmentUsers(departmentName: string) {

@@ -98,10 +98,73 @@ export async function updateDepartment(
 export function invalidateDepartmentCaches() {
   invalidateApiCache("departments:");
   invalidateApiCache("departments:page:");
+  invalidateApiCache("departments:roster:");
   invalidateApiCache("users:");
   invalidateApiCache("users:page:");
   invalidateApiCache("templates:");
   invalidateApiCache("admin:");
+}
+
+export type ApiDepartmentRosterUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  jobTitle: string | null;
+  roleName: string | null;
+  isActive: boolean;
+};
+
+export type ApiDepartmentRosterSection = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  manager: { id: string; fullName: string; email: string } | null;
+  userCount: number;
+  users: ApiDepartmentRosterUser[];
+};
+
+export type ApiDepartmentRoster = {
+  department: ApiDepartment;
+  sections: ApiDepartmentRosterSection[];
+  departmentUsers: ApiDepartmentRosterUser[];
+};
+
+export async function fetchDepartmentRoster(departmentId: string): Promise<ApiDepartmentRoster> {
+  const key = `departments:roster:${departmentId}`;
+  return cachedApi(
+    key,
+    async () => {
+      const { data } = await api.get<ApiDepartmentRoster>(`/departments/${departmentId}/roster`);
+      return data;
+    },
+    10_000,
+  );
+}
+
+export async function assignSectionMembers(
+  parentDepartmentId: string,
+  sectionId: string,
+  userIds: string[],
+): Promise<{ assigned: number }> {
+  const { data } = await api.post<{ assigned: number }>(
+    `/departments/${parentDepartmentId}/sections/${sectionId}/members`,
+    { userIds },
+  );
+  invalidateDepartmentCaches();
+  return data;
+}
+
+export async function unassignSectionMembers(
+  parentDepartmentId: string,
+  sectionId: string,
+  userIds: string[],
+): Promise<{ moved: number }> {
+  const { data } = await api.post<{ moved: number }>(
+    `/departments/${parentDepartmentId}/sections/${sectionId}/members/remove`,
+    { userIds },
+  );
+  invalidateDepartmentCaches();
+  return data;
 }
 
 /** @deprecated Use updateDepartment */

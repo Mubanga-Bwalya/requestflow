@@ -105,6 +105,10 @@ export class DepartmentsMutationService {
       ? await this.assertValidParent(dto.parentDepartmentId)
       : null;
 
+    const cloneTemplatesFromDepartmentId =
+      dto.cloneTemplatesFromDepartmentId ??
+      (parentDepartmentId ? parentDepartmentId : undefined);
+
     if (dto.managerUserId) {
       const manager = await this.prisma.user.findUnique({
         where: { id: dto.managerUserId },
@@ -113,9 +117,9 @@ export class DepartmentsMutationService {
         throw new BadRequestException(`User not found: ${dto.managerUserId}`);
     }
 
-    if (dto.cloneTemplatesFromDepartmentId) {
+    if (cloneTemplatesFromDepartmentId) {
       const source = await this.prisma.department.findUnique({
-        where: { id: dto.cloneTemplatesFromDepartmentId },
+        where: { id: cloneTemplatesFromDepartmentId },
       });
       if (!source)
         throw new BadRequestException(
@@ -135,9 +139,9 @@ export class DepartmentsMutationService {
         },
       });
 
-      if (dto.cloneTemplatesFromDepartmentId) {
+      if (cloneTemplatesFromDepartmentId) {
         await this.cloneTemplatesFrom(
-          dto.cloneTemplatesFromDepartmentId,
+          cloneTemplatesFromDepartmentId,
           dept.id,
           tx,
         );

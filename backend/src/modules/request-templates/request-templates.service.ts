@@ -46,21 +46,41 @@ export class RequestTemplatesService {
     query: ListTemplatesQuery,
   ): Prisma.RequestTemplateWhereInput {
     const { departmentId, departmentName, activeOnly = true, isActive } = query;
-    return {
-      ...(isActive !== undefined
+    const activeFilter =
+      isActive !== undefined
         ? { isActive }
         : activeOnly
           ? { isActive: true }
-          : {}),
-      ...(departmentId ? { departmentId } : {}),
-      ...(departmentName
+          : {};
+
+    const departmentFilter = departmentName
+      ? {
+          department: {
+            name: { equals: departmentName, mode: 'insensitive' as const },
+          },
+        }
+      : departmentId
         ? {
-            department: {
-              name: { equals: departmentName, mode: 'insensitive' },
-            },
+            OR: [
+              { departmentId },
+              { department: { parentDepartmentId: departmentId } },
+            ],
           }
-        : {}),
+        : {};
+
+    return {
+      ...activeFilter,
+      ...departmentFilter,
     };
+  }
+
+  private formatDepartmentName(department: {
+    name: string;
+    parent?: { name: string } | null;
+  }): string {
+    return department.parent
+      ? `${department.parent.name} > ${department.name}`
+      : department.name;
   }
 
   private mapTemplateSummary(t: {
@@ -69,7 +89,7 @@ export class RequestTemplatesService {
     description: string | null;
     departmentId: string;
     isActive: boolean;
-    department: { name: string };
+    department: { name: string; parent?: { name: string } | null };
     fields: { id: string }[];
   }): TemplateSummary {
     return {
@@ -77,7 +97,7 @@ export class RequestTemplatesService {
       name: t.name,
       description: t.description,
       departmentId: t.departmentId,
-      departmentName: t.department.name,
+      departmentName: this.formatDepartmentName(t.department),
       isActive: t.isActive,
       fieldCount: t.fields.length,
     };
@@ -88,7 +108,13 @@ export class RequestTemplatesService {
   ): Promise<TemplateSummary[] | PaginatedResult<TemplateSummary>> {
     const where = this.templateWhere(query);
     const include = {
-      department: { select: { id: true, name: true } },
+      department: {
+        select: {
+          id: true,
+          name: true,
+          parent: { select: { name: true } },
+        },
+      },
       fields:
         query.activeOnly !== false
           ? { where: { isActive: true }, select: { id: true } }

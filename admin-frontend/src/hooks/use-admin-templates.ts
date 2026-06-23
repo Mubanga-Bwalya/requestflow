@@ -8,6 +8,24 @@ import { peekApiCache } from "@/lib/query-cache";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import { TEMPLATE_DESC_MAX, TEMPLATE_NAME_MAX } from "@/lib/admin-form-utils";
 import { createTemplate, fetchTemplates, updateTemplateActive, type ApiTemplateSummary } from "@/lib/templates-api";
+import type { TemplateCreateForm } from "@/components/admin-templates/template-create-dialog";
+
+const emptyCreateForm = (): TemplateCreateForm => ({
+  parentDepartmentId: "",
+  sectionId: "",
+  name: "",
+  description: "",
+});
+
+function resolveParentDepartmentId(deptId: string, departments: ApiDepartment[]): string {
+  if (!deptId || deptId === "ALL") return departments[0]?.id ?? "";
+  const topLevel = departments.find((d) => d.id === deptId);
+  if (topLevel) return topLevel.id;
+  for (const dept of departments) {
+    if (dept.sections?.some((s) => s.id === deptId)) return dept.id;
+  }
+  return deptId;
+}
 
 export function useAdminTemplates() {
   const [departments, setDepartments] = useState<ApiDepartment[]>([]);
@@ -19,7 +37,7 @@ export function useAdminTemplates() {
   const [deptId, setDeptId] = useState("ALL");
   const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ departmentId: "", name: "", description: "" });
+  const [createForm, setCreateForm] = useState<TemplateCreateForm>(emptyCreateForm);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -111,9 +129,8 @@ export function useAdminTemplates() {
 
   function openCreate() {
     setCreateForm({
-      departmentId: deptId !== "ALL" ? deptId : departments[0]?.id ?? "",
-      name: "",
-      description: "",
+      ...emptyCreateForm(),
+      parentDepartmentId: resolveParentDepartmentId(deptId, departments),
     });
     setCreateError(null);
     setCreateOpen(true);
@@ -122,8 +139,13 @@ export function useAdminTemplates() {
   async function submitCreate() {
     setCreateError(null);
     const name = createForm.name.trim();
-    if (!createForm.departmentId) {
-      setCreateError("Select a target department.");
+    const targetDepartmentId = createForm.sectionId || createForm.parentDepartmentId;
+    if (!createForm.parentDepartmentId) {
+      setCreateError("Select a department.");
+      return;
+    }
+    if (!targetDepartmentId) {
+      setCreateError("Select a department.");
       return;
     }
     if (!name) {
@@ -141,13 +163,13 @@ export function useAdminTemplates() {
     setCreating(true);
     try {
       await createTemplate({
-        departmentId: createForm.departmentId,
+        departmentId: targetDepartmentId,
         name,
         description: createForm.description.trim() || undefined,
         isActive: true,
       });
       setCreateOpen(false);
-      setCreateForm({ departmentId: "", name: "", description: "" });
+      setCreateForm(emptyCreateForm());
       await reload();
     } catch (e) {
       setCreateError(apiErrorMessage(e, "Could not create template. Please check your entries."));

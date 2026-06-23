@@ -22,13 +22,18 @@ function parseOptions(children: ReactNode): OptionItem[] {
   Children.forEach(children, (child) => {
     if (!isValidElement(child)) return;
     const el = child as ReactElement<{ value?: string; children?: ReactNode }>;
-    if (el.type !== "option") return;
-    const value = String(el.props.value ?? "");
-    const label =
-      typeof el.props.children === "string" || typeof el.props.children === "number"
-        ? String(el.props.children)
-        : value || "—";
-    items.push({ value, label });
+    if (el.type === "option") {
+      const value = String(el.props.value ?? "");
+      const label =
+        typeof el.props.children === "string" || typeof el.props.children === "number"
+          ? String(el.props.children)
+          : value || "—";
+      items.push({ value, label });
+      return;
+    }
+    if (el.type === "optgroup") {
+      items.push(...parseOptions(el.props.children));
+    }
   });
   return items;
 }

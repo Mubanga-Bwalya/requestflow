@@ -1,3 +1,5 @@
+import { splitUserDepartment, type UserDepartmentRow } from './user-department.include';
+
 export function mapUserToResponse(row: {
   id: string;
   fullName: string;
@@ -6,9 +8,10 @@ export function mapUserToResponse(row: {
   externalEmployeeId?: string | null;
   gn?: string | null;
   isActive: boolean;
-  department: { id: string; name: string } | null;
+  department: UserDepartmentRow | null;
   role: { id: string; name: string } | null;
 }) {
+  const dept = splitUserDepartment(row.department);
   return {
     id: row.id,
     fullName: row.fullName,
@@ -17,8 +20,10 @@ export function mapUserToResponse(row: {
     externalEmployeeId: row.externalEmployeeId ?? null,
     gn: row.gn ?? null,
     isActive: row.isActive,
-    departmentId: row.department?.id ?? null,
-    departmentName: row.department?.name ?? null,
+    departmentId: dept.departmentId,
+    departmentName: dept.departmentName,
+    sectionId: dept.sectionId,
+    sectionName: dept.sectionName,
     roleId: row.role?.id ?? null,
     roleName: row.role?.name ?? null,
   };

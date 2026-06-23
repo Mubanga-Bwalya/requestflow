@@ -59,3 +59,15 @@ const ALIAS_MAP = new Map<string, string>(
 export function resolveDepartmentAlias(normalizedName: string): string | null {
   return ALIAS_MAP.get(normalizedName) ?? null;
 }
+
+/**
+ * When LDAP omits `department`, many Zamtel AD rows still encode the team in
+ * `title` (e.g. "Trade Development Representative" → Sales and Distribution).
+ */
+export function inferDepartmentFromTitle(
+  title: string | null | undefined,
+): string | null {
+  const trimmed = title?.trim();
+  if (!trimmed) return null;
+  return resolveDepartmentAlias(normalizeDepartmentName(trimmed));
+}

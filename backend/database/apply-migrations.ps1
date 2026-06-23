@@ -18,6 +18,9 @@ $Files = @(
   "014_allow_multi_department_manager.sql",
   "015_data_integrity_constraints.sql",
   "016_user_gn.sql",
+  "017_consolidate_ldap_departments.sql",
+  "018_add_department_sections.sql",
+  "019_user_search_indexes.sql",
   "002_seed_core_data.sql"
 )
 

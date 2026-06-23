@@ -7,6 +7,7 @@ import { TableActionButton } from "@/components/shared/table-action-button";
 import { TableOpenLink } from "@/components/shared/table-open-link";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button-link";
 import { PaginationBar } from "@/components/shared/pagination-bar";
 import { ApiErrorBanner } from "@/components/shared/api-error-banner";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -48,9 +49,33 @@ export default function Page() {
               { key: "status", label: "Status" },
               { key: "__actions", label: "Actions" },
             ]}
-            rows={d.result.items.map((row): DataTableRow => ({
-              name: row.name,
-              sections: row.sections?.length ?? 0,
+            rows={d.result.items.map((row): DataTableRow => {
+              const sectionCount = row.sections?.length ?? 0;
+              const sectionsLabel =
+                sectionCount === 0
+                  ? "Set up sub-sections"
+                  : `${sectionCount} sub-section${sectionCount === 1 ? "" : "s"}`;
+              return {
+              name: (
+                <ButtonLink
+                  href={`/departments/${row.id}/sections`}
+                  size="compact"
+                  variant="ghost"
+                  className="h-auto min-h-0 px-0 py-0 font-medium text-brand-dark hover:bg-transparent"
+                >
+                  {row.name}
+                </ButtonLink>
+              ),
+              sections: (
+                <ButtonLink
+                  href={`/departments/${row.id}/sections`}
+                  size="compact"
+                  variant="outline"
+                  className="min-h-9 whitespace-nowrap"
+                >
+                  {sectionsLabel}
+                </ButtonLink>
+              ),
               templates: row.templateCount,
               manager: row.manager?.fullName ?? "—",
               teamMembers: row.userCount,
@@ -62,7 +87,8 @@ export default function Page() {
                   <TableOpenLink href={`/templates?departmentId=${row.id}`} label="Templates" />
                 </div>
               ),
-            }))}
+            };
+            })}
           />
           <PaginationBar
             page={d.result.page}
@@ -91,7 +117,6 @@ export default function Page() {
         error={d.error}
         saving={d.saving}
         onSave={() => void d.save()}
-        onSectionsChanged={d.refreshDepartments}
       />
     </>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { fieldLabelClassName } from "@/components/ui/field-control";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -29,11 +30,21 @@ export function InboxAssignDialog({ open, onOpenChange, selected, dept, userId, 
   const [membersError, setMembersError] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [assignSaving, setAssignSaving] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
 
   const assignableTeamMembers = useMemo(
     () => (userId ? departmentUsers.filter((u) => u.id !== userId) : departmentUsers),
     [departmentUsers, userId],
   );
+
+  const filteredTeamMembers = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    if (!q) return assignableTeamMembers;
+    return assignableTeamMembers.filter((u) => {
+      const hay = [u.fullName, u.email, u.jobTitle ?? "", u.roleName ?? ""].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [assignableTeamMembers, memberSearch]);
 
   const assignmentMemberIds = useMemo(() => {
     const ids = [...assignMembers];
@@ -73,6 +84,7 @@ export function InboxAssignDialog({ open, onOpenChange, selected, dept, userId, 
     setAssignInstructions("");
     setMembersError(null);
     setAssignError(null);
+    setMemberSearch("");
   }, [open, selected]);
 
   async function handleAssign() {
@@ -156,8 +168,18 @@ export function InboxAssignDialog({ open, onOpenChange, selected, dept, userId, 
                 No other users in {dept}. Check &quot;Include me&quot; above or add users in the admin portal.
               </p>
             ) : (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {assignableTeamMembers.map((u) => {
+              <>
+                <Input
+                  type="search"
+                  className="mt-2"
+                  placeholder="Search team members by name, email, or role…"
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  aria-label="Search team members"
+                />
+                <div className="mt-2 max-h-[min(16rem,40vh)] overflow-y-auto pr-1">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {filteredTeamMembers.map((u) => {
                   const checked = assignMembers.includes(u.id);
                   return (
                     <button
@@ -177,8 +199,13 @@ export function InboxAssignDialog({ open, onOpenChange, selected, dept, userId, 
                       {u.roleName ? <span className="mt-0.5 block text-xs text-slate-600">{u.roleName}</span> : null}
                     </button>
                   );
-                })}
-              </div>
+                    })}
+                  </div>
+                  {!filteredTeamMembers.length ? (
+                    <p className="py-4 text-center text-sm text-slate-600">No team members match your search.</p>
+                  ) : null}
+                </div>
+              </>
             )}
             {membersError ? <p className="mt-2 text-xs text-red-600">{membersError}</p> : null}
             {!canCreateAssignment && !usersLoading ? (

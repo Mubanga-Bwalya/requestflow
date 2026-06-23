@@ -12,8 +12,10 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { fieldControlClassName } from "@/components/ui/field-control";
+import { useAnchoredMenuPosition } from "@/components/ui/use-anchored-menu-position";
 
 type OptionItem = { value: string; label: string };
 
@@ -22,13 +24,18 @@ function parseOptions(children: ReactNode): OptionItem[] {
   Children.forEach(children, (child) => {
     if (!isValidElement(child)) return;
     const el = child as ReactElement<{ value?: string; children?: ReactNode }>;
-    if (el.type !== "option") return;
-    const value = String(el.props.value ?? "");
-    const label =
-      typeof el.props.children === "string" || typeof el.props.children === "number"
-        ? String(el.props.children)
-        : value || "—";
-    items.push({ value, label });
+    if (el.type === "option") {
+      const value = String(el.props.value ?? "");
+      const label =
+        typeof el.props.children === "string" || typeof el.props.children === "number"
+          ? String(el.props.children)
+          : value || "—";
+      items.push({ value, label });
+      return;
+    }
+    if (el.type === "optgroup") {
+      items.push(...parseOptions(el.props.children));
+    }
   });
   return items;
 }
@@ -71,15 +78,25 @@ function CustomSelect({
   const listId = `${id}-listbox`;
   const options = parseOptions(children);
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
+  const menuStyle = useAnchoredMenuPosition(open, anchorRef);
 
   const selected = options.find((o) => o.value === String(value ?? ""));
   const displayLabel = selected?.label ?? options.find((o) => o.value === "")?.label ?? "Select…";
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (anchorRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -99,59 +116,66 @@ function CustomSelect({
 
   const selectable = options.filter((o) => o.value !== "");
 
-  return (
-    <div ref={rootRef} className={cn("relative", className)}>
-      <button
-        type="button"
-        id={id}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={listId}
-        className={cn(
-          fieldControlClassName,
-          "rf-focus-ring flex items-center justify-between gap-2 py-0 pl-4 pr-3 text-left",
-          !selected?.value && "text-muted",
-          open && "border-brand-primary outline outline-[3px] outline-brand-magenta outline-offset-2",
-        )}
-        onClick={() => !disabled && setOpen((v) => !v)}
+  const menu =
+    open && mounted ? (
+      <ul
+        ref={menuRef}
+        id={listId}
+        role="listbox"
+        aria-labelledby={id}
+        style={menuStyle}
+        className="rf-select-menu overflow-auto rounded-control border border-zamtel-border bg-white py-1 shadow-overlay"
       >
-        <span className="truncate">{displayLabel}</span>
-        <ChevronDown
-          className={cn("h-4 w-4 shrink-0 text-brand-primary transition-transform duration-200", open && "rotate-180")}
-          aria-hidden
-        />
-      </button>
+        {selectable.map((opt) => {
+          const isSelected = opt.value === String(value ?? "");
+          return (
+            <li key={opt.value || "__empty"} role="option" aria-selected={isSelected}>
+              <button
+                type="button"
+                className={cn(
+                  "rf-clickable-row rf-focus-ring w-full px-4 py-2.5 text-left text-sm",
+                  isSelected
+                    ? "border-l-[3px] border-l-brand-magenta bg-brand-primary/10 font-semibold text-brand-dark"
+                    : "text-brand-dark",
+                )}
+                onClick={() => pick(opt.value)}
+              >
+                {opt.label}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    ) : null;
 
-      {open ? (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-labelledby={id}
-          className="rf-select-menu absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-control border border-zamtel-border bg-white py-1 shadow-overlay"
+  return (
+    <>
+      <div className={cn(className)}>
+        <button
+          ref={anchorRef}
+          type="button"
+          id={id}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={listId}
+          className={cn(
+            fieldControlClassName,
+            "rf-focus-ring flex w-full items-center justify-between gap-2 py-0 pl-4 pr-3 text-left",
+            !selected?.value && "text-muted",
+            open && "border-brand-primary outline outline-[3px] outline-brand-magenta outline-offset-2",
+          )}
+          onClick={() => !disabled && setOpen((v) => !v)}
         >
-          {selectable.map((opt) => {
-            const isSelected = opt.value === String(value ?? "");
-            return (
-              <li key={opt.value || "__empty"} role="option" aria-selected={isSelected}>
-                <button
-                  type="button"
-                  className={cn(
-                    "rf-clickable-row rf-focus-ring w-full px-4 py-2.5 text-left text-sm",
-                    isSelected
-                      ? "border-l-[3px] border-l-brand-magenta bg-brand-primary/10 font-semibold text-brand-dark"
-                      : "text-brand-dark",
-                  )}
-                  onClick={() => pick(opt.value)}
-                >
-                  {opt.label}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </div>
+          <span className="truncate">{displayLabel}</span>
+          <ChevronDown
+            className={cn("h-4 w-4 shrink-0 text-brand-primary transition-transform duration-200", open && "rotate-180")}
+            aria-hidden
+          />
+        </button>
+      </div>
+      {menu && mounted ? createPortal(menu, document.body) : null}
+    </>
   );
 }
 

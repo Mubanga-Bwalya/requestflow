@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DEPT_EXTERNAL_CODE_MAX, DEPT_NAME_MAX, DEPT_NAME_MIN, isValidUuid } from "@/lib/admin-form-utils";
 import { apiErrorMessage } from "@/lib/api-error";
-import { fetchDepartmentUsers } from "@/lib/users-api";
+import { fetchUsers } from "@/lib/users-api";
 import { peekApiCache } from "@/lib/query-cache";
 import { LIST_PAGE_SIZE } from "@/lib/page-size";
 import {
@@ -58,7 +58,9 @@ export function useAdminDepartments() {
   const [editing, setEditing] = useState<ApiDepartment | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [form, setForm] = useState<DeptFormState>(emptyForm());
-  const [deptUsers, setDeptUsers] = useState<{ id: string; fullName: string }[]>([]);
+  const [deptUsers, setDeptUsers] = useState<
+    { id: string; fullName: string; email: string; jobTitle: string | null }[]
+  >([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -135,22 +137,19 @@ export function useAdminDepartments() {
       setDeptUsers([]);
       return;
     }
-    fetchDepartmentUsers(editing.name)
-      .then((users) => setDeptUsers(users.map((u) => ({ id: u.id, fullName: u.fullName }))))
+    fetchUsers({ departmentName: editing.name, limit: 500, status: "Active" })
+      .then((result) =>
+        setDeptUsers(
+          result.items.map((u) => ({
+            id: u.id,
+            fullName: u.fullName,
+            email: u.email,
+            jobTitle: u.jobTitle,
+          })),
+        ),
+      )
       .catch(() => setDeptUsers([]));
   }, [dialogMode, editing]);
-
-  // Re-fetch after a section change and keep the open dialog's `editing` in sync
-  // so its sub-section list reflects the change immediately.
-  const refreshDepartments = useCallback(async () => {
-    const [paged, all] = await Promise.all([
-      fetchDepartmentsPage({ page, limit: LIST_PAGE_SIZE, activeOnly: false }),
-      fetchDepartments(false),
-    ]);
-    setResult(paged);
-    setAllDepartments(all);
-    setEditing((prev) => (prev ? all.find((dep) => dep.id === prev.id) ?? prev : prev));
-  }, [page]);
 
   function openAdd() {
     setDialogMode("add");
@@ -227,7 +226,6 @@ export function useAdminDepartments() {
     error,
     loadError,
     reload,
-    refreshDepartments,
     openAdd,
     openEdit,
     closeDialog,
